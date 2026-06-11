@@ -3,210 +3,783 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>หน้าจอครัว - นักซิ่ง (ระบบแยกคิวอัจฉริยะ)</title>
+  <title>หน้าจอครัว</title>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
   <style>
     html { touch-action: manipulation; }
     body { font-family: 'Tahoma', sans-serif; background-color: #f0f2f5; color: #000; margin: 0; padding: 10px; }
-    
-    #syncStatusBar { position: fixed; top: 0; left: 0; right: 0; height: 35px; background: #27ae60; color: white; display: flex; align-items: center; justify-content: center; font-size: 16px; font-weight: bold; z-index: 1001; }
-    #syncStatusBar.offline { background: #c0392b; }
 
-    .controls { margin: 45px 0 15px; background: #ffffff; padding: 15px; border-radius: 15px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
-    .chef-selector { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; }
-    .selector-btn { padding: 12px 20px; font-size: 20px; font-weight: bold; border: 3px solid #ddd; border-radius: 10px; cursor: pointer; background: #f8f9fa; color: #555; transition: 0.2s; flex: 1; min-width: 100px; }
-    .selector-btn.active { background: #007bff; color: white; border-color: #0056b3; box-shadow: 0 4px 12px rgba(0,123,255,0.3); }
+    #syncStatusBar { position:fixed; top:0; left:0; right:0; height:35px; background:#27ae60; color:white; display:flex; align-items:center; justify-content:center; font-size:16px; font-weight:bold; z-index:1001; gap:12px; }
+    #syncStatusBar.offline { background:#c0392b; }
+    #adminBtn { background:rgba(255,255,255,0.2); border:1px solid rgba(255,255,255,0.5); color:white; font-size:13px; padding:3px 10px; border-radius:6px; cursor:pointer; font-weight:bold; }
+    #adminBtn:hover { background:rgba(255,255,255,0.35); }
 
-    .kitchen-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 15px; margin-top: 10px; }
-    .chef-column { background: #ffffff; border-radius: 20px; padding: 15px; min-height: 500px; border: 2px solid #dee2e6; box-shadow: 0 6px 15px rgba(0,0,0,0.05); }
-    .chef-column h3 { text-align: center; font-size: 32px; margin: 0 0 15px 0; padding-bottom: 10px; border-bottom: 4px solid #007bff; color: #007bff; }
+    .controls { margin:45px 0 15px; background:#fff; padding:15px; border-radius:15px; box-shadow:0 4px 10px rgba(0,0,0,0.1); }
+    .chef-selector { display:flex; flex-wrap:wrap; justify-content:center; gap:10px; }
+    .selector-btn { padding:12px 20px; font-size:20px; font-weight:bold; border:3px solid #ddd; border-radius:10px; cursor:pointer; background:#f8f9fa; color:#555; transition:0.2s; flex:1; min-width:100px; }
+    .selector-btn.active { background:#007bff; color:white; border-color:#0056b3; box-shadow:0 4px 12px rgba(0,123,255,0.3); }
 
-    .order-card { 
-      background: #ffffff; margin-bottom: 15px; padding: 0; border-radius: 15px; 
-      border: 3px solid #007bff; overflow: hidden; box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-    }
-    
-    .card-header { background: #007bff; color: white; padding: 10px 15px; font-size: 28px; font-weight: bold; display: flex; justify-content: space-between; align-items: center; cursor: pointer; }
-    .card-header.ready { background: #6c757d; text-decoration: line-through; opacity: 0.8; }
-    
-    .card-comment { background: #fff3cd; color: #856404; padding: 5px 15px; font-size: 20px; font-weight: bold; border-bottom: 1px solid #ffeeba; }
+    .kitchen-grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(320px,1fr)); gap:15px; margin-top:10px; }
+    .chef-column { background:#fff; border-radius:20px; padding:15px; min-height:500px; border:2px solid #dee2e6; box-shadow:0 6px 15px rgba(0,0,0,0.05); }
+    .chef-column h3 { text-align:center; font-size:32px; margin:0 0 15px; padding-bottom:10px; border-bottom:4px solid #007bff; color:#007bff; }
 
-    .table-list { padding: 5px 0; background: white; }
-    .table-item { 
-      padding: 15px 20px; font-size: 26px; font-weight: bold; border-bottom: 1px solid #eee;
-      display: flex; justify-content: space-between; align-items: center; cursor: pointer;
-    }
-    .table-item:last-child { border-bottom: none; }
+    .order-card { background:#fff; margin-bottom:15px; padding:0; border-radius:15px; border:3px solid #007bff; overflow:hidden; box-shadow:0 4px 8px rgba(0,0,0,0.1); }
+    .card-header { background:#007bff; color:white; padding:10px 15px; font-size:28px; font-weight:bold; display:flex; justify-content:space-between; align-items:center; cursor:pointer; }
+    .card-header.ready { background:#6c757d; text-decoration:line-through; opacity:0.8; }
+    .card-comment { background:#fff3cd; color:#856404; padding:5px 15px; font-size:20px; font-weight:bold; border-bottom:1px solid #ffeeba; }
+    .table-list { padding:5px 0; background:white; }
+    .table-item { padding:15px 20px; font-size:26px; font-weight:bold; border-bottom:1px solid #eee; display:flex; justify-content:space-between; align-items:center; cursor:pointer; }
+    .table-item:last-child { border-bottom:none; }
+    .table-item.ready { background:#e8f5e9; color:#aaa; text-decoration:line-through; }
+    .table-item.ready .qty-circle { background:#aaa; }
+    .qty-circle { background:#007bff; color:white; min-width:40px; height:40px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:22px; }
+    .home-tag { color:#e74c3c; font-size:18px; margin-left:10px; border:2px solid #e74c3c; padding:2px 5px; border-radius:5px; }
+    .hidden { display:none !important; }
 
-    .table-item.ready { background: #e8f5e9; color: #aaa; text-decoration: line-through; }
-    .table-item.ready .qty-circle { background: #aaa; }
+    /* ====== Admin Panel ====== */
+    #adminOverlay { display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.75); z-index:3000; overflow-y:auto; padding:10px; box-sizing:border-box; }
+    #adminOverlay.show { display:block; }
+    #adminPanel { background:#f8f9fa; max-width:860px; margin:20px auto 40px; border-radius:16px; overflow:hidden; box-shadow:0 8px 32px rgba(0,0,0,0.3); }
+    .admin-header { background:linear-gradient(135deg,#e67e22,#f39c12); padding:18px 24px; display:flex; align-items:center; justify-content:space-between; }
+    .admin-tabs { background:white; padding:12px 20px; border-bottom:1px solid #e9ecef; display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+    .adm-tab { background:#f1f3f5; border:2px solid transparent; padding:7px 16px; border-radius:20px; font-size:15px; font-weight:600; cursor:pointer; color:#555; transition:all 0.2s; }
+    .adm-tab.active { background:#e67e22 !important; color:white !important; border-color:#e67e22 !important; }
+    .admin-body { padding:20px; }
 
-    .qty-circle { background: #007bff; color: white; min-width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 22px; }
-    .home-tag { color: #e74c3c; font-size: 18px; margin-left: 10px; border: 2px solid #e74c3c; padding: 2px 5px; border-radius: 5px; }
+    /* tab 1: เพิ่มเมนูใหม่ */
+    .field-label { font-size:14px; font-weight:600; color:#555; margin-bottom:4px; }
+    .field-group { margin-bottom:14px; }
+    .adm-input { width:100%; font-size:16px; padding:9px 14px; border:2px solid #e67e22; border-radius:8px; box-sizing:border-box; }
+    .adm-input:focus { outline:none; border-color:#c0392b; }
+    .adm-select { width:100%; font-size:16px; padding:9px 12px; border:2px solid #e67e22; border-radius:8px; background:white; }
+    .adm-btn-primary { background:#e67e22; color:white; border:none; padding:11px 24px; border-radius:8px; font-size:16px; font-weight:bold; cursor:pointer; width:100%; }
+    .adm-btn-primary:hover { background:#d35400; }
+    .chef-checkbox-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(120px,1fr)); gap:8px; }
+    .chef-checkbox-item { background:white; border:2px solid #ddd; border-radius:8px; padding:10px 12px; cursor:pointer; display:flex; align-items:center; gap:8px; font-size:16px; font-weight:600; transition:all 0.15s; }
+    .chef-checkbox-item.selected { background:#fff3e0; border-color:#e67e22; color:#e67e22; }
+    .chef-checkbox-item input { display:none; }
 
-    .hidden { display: none !important; }
+    /* tab 2: กำหนดเมนูให้แม่ครัว */
+    .chef-card { background:white; border:2px solid #dee2e6; border-radius:12px; margin-bottom:14px; overflow:hidden; }
+    .chef-card-header { background:#007bff; color:white; padding:10px 16px; font-size:18px; font-weight:bold; display:flex; justify-content:space-between; align-items:center; }
+    .chef-keyword-list { padding:10px 14px; display:flex; flex-wrap:wrap; gap:6px; }
+    .chef-keyword-tag { background:#e8f4fd; border:1px solid #007bff; color:#007bff; padding:4px 10px; border-radius:20px; font-size:14px; font-weight:600; display:flex; align-items:center; gap:5px; }
+    .chef-keyword-tag button { background:none; border:none; color:#e74c3c; cursor:pointer; font-size:14px; padding:0; line-height:1; }
+    .chef-add-kw { display:flex; gap:6px; padding:8px 14px 12px; }
+    .chef-kw-input { flex:1; font-size:15px; padding:7px 10px; border:2px solid #007bff; border-radius:8px; }
+    .chef-kw-btn { background:#007bff; color:white; border:none; padding:7px 14px; border-radius:8px; font-size:15px; cursor:pointer; font-weight:bold; }
+
+    /* tab 3: แก้ราคา */
+    .price-row-adm { display:flex; align-items:center; justify-content:space-between; padding:9px 8px; border-bottom:1px solid #eee; font-size:15px; gap:8px; }
+    .price-row-adm:last-child { border-bottom:none; }
+    .price-input-adm { width:80px; padding:5px 8px; border:2px solid #ddd; border-radius:6px; font-size:15px; text-align:right; }
+    .price-input-adm:focus { border-color:#27ae60; outline:none; }
+    .price-chef-badge { font-size:11px; color:#fff; background:#007bff; padding:2px 7px; border-radius:10px; margin-left:5px; }
+
+    /* PIN overlay */
+    #kitchenPinOverlay { display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.8); z-index:4000; align-items:center; justify-content:center; }
+    #kitchenPinOverlay.show { display:flex; }
+    .kpin-box { background:white; border-radius:16px; padding:28px; max-width:320px; width:90%; text-align:center; }
+    .kpin-dot { width:16px; height:16px; border-radius:50%; border:2px solid #555; display:inline-block; margin:0 6px; }
+    .kpin-dot.filled { background:#2c3e50; border-color:#2c3e50; }
+    .kpin-key { background:#f8f9fa; border:2px solid #ddd; border-radius:10px; font-size:22px; font-weight:bold; padding:13px; cursor:pointer; color:#2c3e50; }
+    .kpin-key:active { background:#ddd; }
+
+    #admSaveStatus { font-size:12px; color:#aaa; }
   </style>
 </head>
 <body>
-  <div id="syncStatusBar"><span id="syncStatusText">กำลังเชื่อมต่อ...</span></div>
-  <div class="controls">
-    <div class="chef-selector">
-      <button class="selector-btn active" onclick="toggleChef('kik', this)">กิ๊ก</button>
-      <button class="selector-btn active" onclick="toggleChef('jeab', this)">เจี๊ยบ</button>
-      <button class="selector-btn active" onclick="toggleChef('nan', this)">พลโท</button>
-      <button class="selector-btn active" onclick="toggleChef('see', this)">ซี</button>
+
+<div id="syncStatusBar">
+  <span id="syncStatusText">กำลังเชื่อมต่อ...</span>
+  <button id="adminBtn" onclick="openKitchenPin()">⚙️ จัดการ</button>
+</div>
+
+<!-- PIN Modal -->
+<div id="kitchenPinOverlay">
+  <div class="kpin-box">
+    <h2 style="margin:0 0 8px; color:#2c3e50; font-size:20px;">🔒 ใส่รหัส PIN</h2>
+    <p style="color:#aaa; font-size:13px; margin:0 0 16px;">สำหรับผู้ดูแลระบบเท่านั้น</p>
+    <div id="kpinDots" style="display:flex; justify-content:center; gap:10px; margin-bottom:18px;">
+      <div class="kpin-dot"></div><div class="kpin-dot"></div><div class="kpin-dot"></div><div class="kpin-dot"></div>
     </div>
+    <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:8px; max-width:220px; margin:0 auto 12px;">
+      <button class="kpin-key" onclick="kpinKey('1')">1</button>
+      <button class="kpin-key" onclick="kpinKey('2')">2</button>
+      <button class="kpin-key" onclick="kpinKey('3')">3</button>
+      <button class="kpin-key" onclick="kpinKey('4')">4</button>
+      <button class="kpin-key" onclick="kpinKey('5')">5</button>
+      <button class="kpin-key" onclick="kpinKey('6')">6</button>
+      <button class="kpin-key" onclick="kpinKey('7')">7</button>
+      <button class="kpin-key" onclick="kpinKey('8')">8</button>
+      <button class="kpin-key" onclick="kpinKey('9')">9</button>
+      <button class="kpin-key" onclick="kpinKey('clear')" style="background:#e74c3c;color:white;">✕</button>
+      <button class="kpin-key" onclick="kpinKey('0')">0</button>
+      <button class="kpin-key" onclick="kpinKey('back')" style="background:#e67e22;color:white;">⌫</button>
+    </div>
+    <p id="kpinError" style="color:#e74c3c; font-size:13px; min-height:18px; margin:0 0 10px;"></p>
+    <button onclick="closeKitchenPin()" style="background:none; border:1px solid #ccc; color:#999; padding:7px 18px; border-radius:8px; cursor:pointer; font-size:13px;">ยกเลิก</button>
   </div>
+</div>
 
-  <div class="kitchen-grid" id="kitchenGrid">
-    <div class="chef-column" id="col-kik"><h3>กิ๊ก</h3><div id="list-kik"></div></div>
-    <div class="chef-column" id="col-jeab"><h3>เจี๊ยบ</h3><div id="list-jeab"></div></div>
-    <div class="chef-column" id="col-nan"><h3>พลโท</h3><div id="list-nan"></div></div>
-    <div class="chef-column" id="col-see"><h3>ซี</h3><div id="list-see"></div></div>
+<!-- Admin Panel -->
+<div id="adminOverlay">
+  <div id="adminPanel">
+    <div class="admin-header">
+      <div>
+        <div style="color:white; font-size:21px; font-weight:bold;">🍽️ จัดการเมนูครัว</div>
+        <div style="color:rgba(255,255,255,0.75); font-size:13px; margin-top:2px;">เพิ่มเมนู · กำหนดราคา · มอบหมายแม่ครัว</div>
+      </div>
+      <button onclick="closeAdmin()" style="background:rgba(255,255,255,0.2); border:none; color:white; font-size:22px; width:40px; height:40px; border-radius:50%; cursor:pointer;">✕</button>
+    </div>
+
+    <div class="admin-tabs">
+      <button id="admTab1" class="adm-tab active" onclick="admSetTab(1)">➕ เพิ่มเมนูใหม่</button>
+      <button id="admTab2" class="adm-tab"        onclick="admSetTab(2)">👨‍🍳 มอบหมายแม่ครัว</button>
+      <button id="admTab3" class="adm-tab"        onclick="admSetTab(3)">💰 แก้ราคาเมนู</button>
+      <button id="admTab4" class="adm-tab"        onclick="admSetTab(4)">🔀 สั่งแยก/รวม</button>
+      <div style="flex:1;"></div>
+      <span id="admSaveStatus"></span>
+    </div>
+
+    <!-- Tab 1: เพิ่มเมนูใหม่ -->
+    <div id="admPanel1" class="admin-body">
+      <div class="field-group">
+        <div class="field-label">ชื่อเมนู *</div>
+        <input id="newMenuName" class="adm-input" type="text" placeholder="เช่น คั่วไก่ใบมะกรูด" maxlength="40"
+          onkeydown="if(event.key==='Enter') document.getElementById('newMenuPrice').focus()">
+      </div>
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+        <div class="field-group">
+          <div class="field-label">ราคา (บาท)</div>
+          <input id="newMenuPrice" class="adm-input" type="number" min="0" step="1" placeholder="0"
+            onkeydown="if(event.key==='Enter') document.getElementById('newMenuCat').focus()">
+        </div>
+        <div class="field-group">
+          <div class="field-label">หมวดหมู่</div>
+          <select id="newMenuCat" class="adm-select"></select>
+        </div>
+      </div>
+      <div class="field-group">
+        <div class="field-label">มอบหมายให้แม่ครัว (เลือกได้หลายคน)</div>
+        <div class="chef-checkbox-grid" id="chefCheckboxes"></div>
+      </div>
+      <div class="field-group">
+        <div class="field-label" style="display:flex; align-items:center; gap:8px;">
+          <input type="checkbox" id="isNonBatchable" style="width:16px;height:16px;">
+          <span>สั่งแยกรายการ (ไม่รวมกับโต๊ะอื่น) เช่น ไข่เจียว, ของเดี่ยว</span>
+        </div>
+      </div>
+      <button class="adm-btn-primary" onclick="addNewMenuItem()">✅ เพิ่มเมนูนี้</button>
+      <p id="addMenuResult" style="text-align:center; margin-top:10px; font-size:15px; min-height:20px;"></p>
+    </div>
+
+    <!-- Tab 2: มอบหมายแม่ครัว -->
+    <div id="admPanel2" class="admin-body" style="display:none;">
+      <p style="color:#888; font-size:14px; margin:0 0 14px;">กำหนด "คีย์เวิร์ด" ให้แต่ละแม่ครัว — เมนูที่มีคำนี้ในชื่อจะถูกส่งให้แม่ครัวคนนั้น</p>
+      <div id="chefCardsContainer"></div>
+    </div>
+
+    <!-- Tab 3: แก้ราคา -->
+    <div id="admPanel3" class="admin-body" style="display:none;">
+      <div style="margin-bottom:12px; display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+        <input id="priceSearch" type="text" placeholder="ค้นหาเมนู..." oninput="renderPriceTab()" 
+          style="flex:1; min-width:150px; font-size:15px; padding:8px 12px; border:2px solid #27ae60; border-radius:8px;">
+        <button onclick="savePriceTab()" style="background:#27ae60; color:white; border:none; padding:9px 18px; border-radius:8px; font-size:15px; cursor:pointer; font-weight:bold;">💾 บันทึกราคา</button>
+      </div>
+      <div id="priceTabList" style="max-height:55vh; overflow-y:auto;"></div>
+    </div>
+
+    <!-- Tab 4: จัดการสั่งแยก/รวม -->
+    <div id="admPanel4" class="admin-body" style="display:none;">
+      <p style="color:#555; font-size:14px; margin:0 0 14px; line-height:1.6; background:#fff3e0; padding:10px 14px; border-radius:8px; border-left:4px solid #e67e22;">
+        <strong>🔴 สั่งแยก</strong> — ครัวเห็นแยกทีละโต๊ะ ไม่รวมกัน (เช่น ไข่เจียวโต๊ะ 1 / ไข่เจียวโต๊ะ 3)<br>
+        <strong>🟢 รวมได้</strong> — ครัวเห็นรวมยอดทุกโต๊ะเป็นการ์ดเดียว (เช่น ลาบรวม 5 จาน)
+      </p>
+      <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-bottom:12px;">
+        <input id="nbSearch" type="text" placeholder="🔍 ค้นหาเมนู..." oninput="renderNonBatchTab()"
+          style="flex:1; min-width:150px; font-size:15px; padding:8px 12px; border:2px solid #e67e22; border-radius:8px;">
+        <button onclick="nbSetFilter('all')" id="nbBtnAll"
+          style="background:#e67e22; color:white; border:2px solid #e67e22; padding:8px 13px; border-radius:8px; font-size:13px; font-weight:bold; cursor:pointer;">ทั้งหมด</button>
+        <button onclick="nbSetFilter('split')" id="nbBtnSplit"
+          style="background:#f8f9fa; color:#555; border:2px solid #ddd; padding:8px 13px; border-radius:8px; font-size:13px; font-weight:bold; cursor:pointer;">🔴 แยก</button>
+        <button onclick="nbSetFilter('merge')" id="nbBtnMerge"
+          style="background:#f8f9fa; color:#555; border:2px solid #ddd; padding:8px 13px; border-radius:8px; font-size:13px; font-weight:bold; cursor:pointer;">🟢 รวม</button>
+      </div>
+      <div id="nbMenuList" style="max-height:52vh; overflow-y:auto; border:1px solid #eee; border-radius:10px;"></div>
+      <div id="nbStatus" style="text-align:center; margin-top:10px; font-size:14px; color:#27ae60; min-height:18px;"></div>
+    </div>
+
   </div>
+</div>
 
-  <script>
-    const firebaseConfig = {
-      apiKey: "AIzaSyDskwJlUNbr3zkKnyY_-n582PdoCrts2AE",
-      authDomain: "supertest01-55ac2.firebaseapp.com",
-      databaseURL: "https://supertest01-55ac2-default-rtdb.asia-southeast1.firebasedatabase.app",
-      projectId: "supertest01-55ac2",
-      storageBucket: "supertest01-55ac2.firebasestorage.app",
-      messagingSenderId: "846236839338",
-      appId: "1:846236839338:web:260ca9b6af72c69837cfd3"
-    };
-    firebase.initializeApp(firebaseConfig);
-    const db = firebase.database();
-    const BASE_PATH = "racing_order_app/";
+<!-- Main kitchen UI -->
+<div class="controls">
+  <div class="chef-selector" id="chefSelectorBtns"></div>
+</div>
+<div class="kitchen-grid" id="kitchenGrid"></div>
 
-    const chefMenus = {
-      'kik':['ต้มแซ่บ','คั่ว','ผักหวาน','แป๊ะซะ','แวะถัวะ','ผัดเผ็ด','อ่อม','แกงป่าผัก','แกงป่าหน่อไม้ดอง','แกงป่าหน่อไม้สด','บอน','มะรุม','กระบุก','แกงไก่หน่อ','แกงหมูหน่อ','แกงเนื้อหน่อ','แกงปลา','ผัดฉ่า','ปลาร้า','ไก่น้ำปลา','สามชั้น','หมูน้ำปลา','โสม','ผักหวานเห็ดเผาะ','ผักหวานไข่มดแดงใส่เห็ดเผาะ'],
-      'jeab':['ไข่เจียว','แกงหอย','พิเศษ','ทอง','แถม','หมกหม้อ','ขี้เหล็ก','ต้มจืด','ทอดมัน','หมกปลานิล','ไก่หลงทาง'],
-      'nan':['ขาหมู','ข้าว','ขนม','นึ่ง'],
-      'see':['ลาบ','ปลาเนื้ออ่อน','ปลานิลแดดเดียว','สมุนไพร','สะเดาน้ำปลาหวาน','ตำ','เตี๋ยว','ต้มยำ','เกาเหลา','ชุดโปร']
-    };
+<script>
+const firebaseConfig = {
+  apiKey: "AIzaSyDskwJlUNbr3zkKnyY_-n582PdoCrts2AE",
+  authDomain: "supertest01-55ac2.firebaseapp.com",
+  databaseURL: "https://supertest01-55ac2-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "supertest01-55ac2",
+  storageBucket: "supertest01-55ac2.firebasestorage.app",
+  messagingSenderId: "846236839338",
+  appId: "1:846236839338:web:260ca9b6af72c69837cfd3"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+const BASE_PATH = "racing_order_app/";
 
-    const nonBatchableMenuItems = ['ปลาช่อนแป๊ะซะ','ปลาช่อนแวะถัวะ','อ่อมหมู','ผักหวานไข่มดแดง','ผักหวาน','ผักหวานเห็ดเผาะ','ผักหวานไข่มดแดงใส่เห็ดเผาะ','ไข่เจียวบาว','ไข่เจียวธรรมดา','ไข่เจียวหมูสับ','ไข่เจียวไข่มดแดง','ชุดโปร'];
+// ---- Default data (used for migration if Firebase empty) ----
+const DEFAULT_CHEF_NAMES = { kik:'กิ๊ก', jeab:'เจี๊ยบ', nan:'พลโท', see:'ซี' };
+const DEFAULT_CHEF_MENUS = {
+  kik:['ต้มแซ่บ','คั่ว','ผักหวาน','แป๊ะซะ','แวะถัวะ','ผัดเผ็ด','อ่อม','แกงป่าผัก','แกงป่าหน่อไม้ดอง','แกงป่าหน่อไม้สด','บอน','มะรุม','กระบุก','แกงไก่หน่อ','แกงหมูหน่อ','แกงเนื้อหน่อ','แกงปลา','ผัดฉ่า','ปลาร้า','ไก่น้ำปลา','สามชั้น','หมูน้ำปลา','โสม','ผักหวานเห็ดเผาะ','ผักหวานไข่มดแดงใส่เห็ดเผาะ'],
+  jeab:['ไข่เจียว','แกงหอย','พิเศษ','ทอง','แถม','หมกหม้อ','ขี้เหล็ก','ต้มจืด','ทอดมัน','หมกปลานิล','ไก่หลงทาง'],
+  nan:['ขาหมู','ข้าว','ขนม','นึ่ง'],
+  see:['ลาบ','ปลาเนื้ออ่อน','ปลานิลแดดเดียว','สมุนไพร','สะเดาน้ำปลาหวาน','ตำ','ปลาหลด','เตี๋ยว','ต้มยำ','เกาเหลา','ชุดโปร']
+};
+const DEFAULT_NONBATCHABLE = ['ปลาช่อนแป๊ะซะ','ปลาช่อนแวะถัวะ','อ่อมหมู','ผักหวานไข่มดแดง','ผักหวาน','ผักหวานเห็ดเผาะ','ผักหวานไข่มดแดงใส่เห็ดเผาะ','ไข่เจียวบาว','ไข่เจียวธรรมดา','ไข่เจียวหมูสับ','ไข่เจียวไข่มดแดง','ชุดโปร'];
+const CHEF_COLORS = { kik:'#007bff', jeab:'#e74c3c', nan:'#27ae60', see:'#8e44ad' };
 
-    let activeChefs = ['kik', 'jeab', 'nan', 'see'];
-    let currentOrders = [];
+// ---- Live state ----
+let chefConfig = {}; // { kik: { name: 'กิ๊ก', keywords: [...] }, ... }
+let nonBatchableItems = [];
+let menuPrices = {};
+let menuCategories = {};
+let activeChefs = [];
+let currentOrders = [];
+let kpinBuffer = '';
+let kpinUnlockedAt = 0;
 
-    function toggleChef(chef, btn) {
-      if (activeChefs.includes(chef)) {
-        activeChefs = activeChefs.filter(c => c !== chef);
-        btn.classList.remove('active');
-        document.getElementById('col-' + chef).classList.add('hidden');
-      } else {
-        activeChefs.push(chef);
-        btn.classList.add('active');
-        document.getElementById('col-' + chef).classList.remove('hidden');
-      }
+// ---- PIN helpers ----
+function simpleHash(s) { let h=5381; for(let i=0;i<s.length;i++) h=((h<<5)+h)^s.charCodeAt(i); return (h>>>0).toString(16); }
+function isPinUnlocked() { return (Date.now()-kpinUnlockedAt) < 30*60*1000; }
+
+function openKitchenPin() {
+  if (isPinUnlocked()) { openAdmin(); return; }
+  kpinBuffer = '';
+  updateKpinDots();
+  document.getElementById('kpinError').textContent = '';
+  document.getElementById('kitchenPinOverlay').classList.add('show');
+}
+function closeKitchenPin() {
+  document.getElementById('kitchenPinOverlay').classList.remove('show');
+  kpinBuffer = '';
+}
+function updateKpinDots() {
+  document.querySelectorAll('.kpin-dot').forEach((d,i) => d.classList.toggle('filled', i < kpinBuffer.length));
+}
+function kpinKey(k) {
+  if (k==='clear') { kpinBuffer=''; updateKpinDots(); return; }
+  if (k==='back')  { kpinBuffer=kpinBuffer.slice(0,-1); updateKpinDots(); return; }
+  if (kpinBuffer.length>=4) return;
+  kpinBuffer+=k; updateKpinDots();
+  if (kpinBuffer.length===4) setTimeout(checkKPin, 120);
+}
+function checkKPin() {
+  const entered = simpleHash(kpinBuffer);
+  db.ref(BASE_PATH+'ownerPin').once('value', snap => {
+    const stored = snap.val();
+    if (!stored || entered===stored) {
+      kpinUnlockedAt = Date.now();
+      closeKitchenPin();
+      openAdmin();
+    } else {
+      document.getElementById('kpinError').textContent = '❌ PIN ไม่ถูกต้อง';
+      kpinBuffer = ''; updateKpinDots();
     }
+  });
+}
 
-    function toggleItemReady(id, currentStatus) {
-      const newStatus = (currentStatus === 'ready') ? 'pending' : 'ready';
-      db.ref(BASE_PATH + 'orders/' + id + '/status').set(newStatus);
+// ---- Admin panel ----
+function openAdmin() {
+  document.getElementById('adminOverlay').classList.add('show');
+  admSetTab(1);
+}
+function closeAdmin() {
+  document.getElementById('adminOverlay').classList.remove('show');
+}
+function admSetTab(n) {
+  [1,2,3,4].forEach(i => {
+    const tab = document.getElementById('admTab'+i);
+    const panel = document.getElementById('admPanel'+i);
+    if (tab) tab.className = 'adm-tab' + (i===n?' active':'');
+    if (panel) panel.style.display = i===n?'block':'none';
+  });
+  if (n===1) renderAddMenuTab();
+  if (n===2) renderChefCards();
+  if (n===3) renderPriceTab();
+  if (n===4) renderNonBatchTab();
+}
+function admShowStatus(msg, ok=true) {
+  const el = document.getElementById('admSaveStatus');
+  el.textContent = msg;
+  el.style.color = ok ? '#27ae60' : '#e74c3c';
+  setTimeout(() => el.textContent='', 2800);
+}
+
+// ---- Tab 1: เพิ่มเมนูใหม่ ----
+function renderAddMenuTab() {
+  // populate category select
+  const sel = document.getElementById('newMenuCat');
+  sel.innerHTML = Object.keys(menuCategories).map(c=>`<option>${c}</option>`).join('');
+  // populate chef checkboxes
+  const box = document.getElementById('chefCheckboxes');
+  box.innerHTML = '';
+  Object.entries(chefConfig).forEach(([id, cfg]) => {
+    const color = CHEF_COLORS[id] || '#555';
+    const div = document.createElement('div');
+    div.className = 'chef-checkbox-item';
+    div.id = 'ckchef_' + id;
+    div.onclick = () => div.classList.toggle('selected');
+    div.innerHTML = `<span style="color:${color}; font-size:20px;">●</span> ${cfg.name||id}`;
+    box.appendChild(div);
+  });
+}
+
+function addNewMenuItem() {
+  const name  = document.getElementById('newMenuName').value.trim();
+  const price = parseFloat(document.getElementById('newMenuPrice').value) || 0;
+  const cat   = document.getElementById('newMenuCat').value;
+  const nonB  = document.getElementById('isNonBatchable').checked;
+  const result = document.getElementById('addMenuResult');
+
+  if (!name) { result.textContent='❌ ใส่ชื่อเมนูด้วยครับ'; result.style.color='#e74c3c'; return; }
+  if (!cat)  { result.textContent='❌ เลือกหมวดหมู่ด้วยครับ'; result.style.color='#e74c3c'; return; }
+
+  // which chefs selected
+  const selectedChefs = Object.keys(chefConfig).filter(id => document.getElementById('ckchef_'+id)?.classList.contains('selected'));
+
+  const updates = {};
+
+  // 1. เพิ่มเข้า menuConfig (หมวดหมู่)
+  if (menuCategories[cat]) {
+    if (!menuCategories[cat].includes(name)) {
+      menuCategories[cat].push(name);
+      const itemsObj = {};
+      menuCategories[cat].forEach((item,j) => itemsObj[j]=item);
+      updates[BASE_PATH+'menuConfig/cats/'+cat+'/items'] = itemsObj;
     }
+  }
 
-    function toggleGroupReady(orderIdsStr, isAllReady) {
-        const orderIds = JSON.parse(orderIdsStr);
-        const newStatus = isAllReady ? 'pending' : 'ready';
-        const updates = {};
-        orderIds.forEach(id => {
-            updates[BASE_PATH + 'orders/' + id + '/status'] = newStatus;
-        });
-        db.ref().update(updates);
+  // 2. บันทึกราคา
+  if (price > 0) {
+    menuPrices[name] = price;
+    updates[BASE_PATH+'menuPrices/'+name] = price;
+  }
+
+  // 3. เพิ่มคีย์เวิร์ดให้แม่ครัวที่เลือก
+  selectedChefs.forEach(chefId => {
+    const kws = chefConfig[chefId]?.keywords || [];
+    if (!kws.includes(name)) {
+      kws.push(name);
+      const kwObj = {};
+      kws.forEach((k,i) => kwObj[i]=k);
+      updates[BASE_PATH+'chefConfig/'+chefId+'/keywords'] = kwObj;
+      chefConfig[chefId].keywords = kws;
     }
+  });
 
-    db.ref(BASE_PATH + 'orders').on('value', (snapshot) => {
-      const data = snapshot.val();
-      currentOrders = data ? Object.entries(data).map(([id, val]) => ({ id, ...val })) : [];
-      renderOrders();
+  // 4. nonBatchable
+  if (nonB && !nonBatchableItems.includes(name)) {
+    nonBatchableItems.push(name);
+    const nbObj = {};
+    nonBatchableItems.forEach((k,i) => nbObj[i]=k);
+    updates[BASE_PATH+'chefConfig/__nonBatchable__'] = nbObj;
+  }
+
+  db.ref().update(updates).then(() => {
+    result.textContent = `✅ เพิ่ม "${name}" สำเร็จ!`;
+    result.style.color = '#27ae60';
+    document.getElementById('newMenuName').value = '';
+    document.getElementById('newMenuPrice').value = '';
+    document.getElementById('isNonBatchable').checked = false;
+    document.querySelectorAll('.chef-checkbox-item').forEach(el => el.classList.remove('selected'));
+    admShowStatus('บันทึกแล้ว ✅');
+    rebuildKitchenUI();
+  }).catch(e => { result.textContent='❌ '+e.message; result.style.color='#e74c3c'; });
+}
+
+// ---- Tab 2: มอบหมายแม่ครัว ----
+function renderChefCards() {
+  const container = document.getElementById('chefCardsContainer');
+  container.innerHTML = '';
+  Object.entries(chefConfig).forEach(([chefId, cfg]) => {
+    if (chefId === '__nonBatchable__') return;
+    const color = CHEF_COLORS[chefId] || '#555';
+    const card = document.createElement('div');
+    card.className = 'chef-card';
+    const kws = cfg.keywords || [];
+    const tagsHtml = kws.map((kw,i) => `
+      <span class="chef-keyword-tag">
+        ${kw}
+        <button onclick="removeChefKeyword('${chefId}',${i})" title="ลบ">✕</button>
+      </span>`).join('');
+
+    card.innerHTML = `
+      <div class="chef-card-header" style="background:${color};">
+        <span>${cfg.name||chefId}</span>
+        <span style="font-size:14px; opacity:0.8;">${kws.length} คีย์เวิร์ด</span>
+      </div>
+      <div class="chef-keyword-list">${tagsHtml || '<span style="color:#aaa;font-size:14px;">ยังไม่มีคีย์เวิร์ด</span>'}</div>
+      <div class="chef-add-kw">
+        <input id="kwInput_${chefId}" class="chef-kw-input" type="text" placeholder="เพิ่มคีย์เวิร์ด..." maxlength="30"
+          onkeydown="if(event.key==='Enter') addChefKeyword('${chefId}')">
+        <button class="chef-kw-btn" style="background:${color};" onclick="addChefKeyword('${chefId}')">+</button>
+      </div>`;
+    container.appendChild(card);
+  });
+}
+
+function addChefKeyword(chefId) {
+  const input = document.getElementById('kwInput_'+chefId);
+  const kw = input.value.trim();
+  if (!kw) return;
+  const kws = chefConfig[chefId]?.keywords || [];
+  if (kws.includes(kw)) { input.value=''; return; }
+  kws.push(kw);
+  chefConfig[chefId].keywords = kws;
+  const kwObj = {};
+  kws.forEach((k,i) => kwObj[i]=k);
+  db.ref(BASE_PATH+'chefConfig/'+chefId+'/keywords').set(kwObj).then(() => {
+    admShowStatus('บันทึกแล้ว ✅');
+    renderChefCards();
+    renderOrders();
+  });
+  input.value = '';
+}
+
+function removeChefKeyword(chefId, idx) {
+  const kws = chefConfig[chefId]?.keywords || [];
+  kws.splice(idx, 1);
+  chefConfig[chefId].keywords = kws;
+  const kwObj = {};
+  kws.forEach((k,i) => kwObj[i]=k);
+  db.ref(BASE_PATH+'chefConfig/'+chefId+'/keywords').set(kwObj).then(() => {
+    admShowStatus('บันทึกแล้ว ✅');
+    renderChefCards();
+    renderOrders();
+  });
+}
+
+// ---- Tab 3: ราคา ----
+function renderPriceTab() {
+  const q = (document.getElementById('priceSearch')?.value||'').trim();
+  const allMenus = [...new Set(Object.values(menuCategories).flat())];
+  const filtered = q ? allMenus.filter(m=>m.includes(q)) : allMenus;
+  const container = document.getElementById('priceTabList');
+
+  // build chefLookup: item -> chefName
+  const chefLookup = {};
+  Object.entries(chefConfig).forEach(([id, cfg]) => {
+    if (id==='__nonBatchable__') return;
+    (cfg.keywords||[]).forEach(kw => {
+      allMenus.forEach(m => {
+        if (m.includes(kw) && !chefLookup[m]) chefLookup[m] = cfg.name||id;
+      });
     });
+  });
 
-    function renderOrders() {
-      ['kik', 'jeab', 'nan', 'see'].forEach(id => document.getElementById('list-' + id).innerHTML = '');
+  if (filtered.length===0) { container.innerHTML='<p style="color:#aaa;text-align:center;padding:20px;">ไม่พบเมนู</p>'; return; }
+  container.innerHTML = filtered.map(item => {
+    const badge = chefLookup[item] ? `<span class="price-chef-badge">${chefLookup[item]}</span>` : '';
+    return `<div class="price-row-adm">
+      <span>${item}${badge}</span>
+      <div style="display:flex;align-items:center;gap:5px;">
+        <input class="price-input-adm" id="admprice_${CSS.escape(item)}" type="number" min="0" step="1" placeholder="0" value="${menuPrices[item]||''}">
+        <span style="color:#888;font-size:13px;">฿</span>
+      </div>
+    </div>`;
+  }).join('');
+}
 
-      const summaryGroups = []; 
-      
-      currentOrders.forEach(o => {
-        const isNonBatchable = nonBatchableMenuItems.includes(o.item);
-        let targetGroup = null;
+function savePriceTab() {
+  const allMenus = [...new Set(Object.values(menuCategories).flat())];
+  const updates = {};
+  allMenus.forEach(item => {
+    const el = document.getElementById('admprice_'+CSS.escape(item));
+    if (el) {
+      const v = parseFloat(el.value);
+      if (!isNaN(v) && v>0) { menuPrices[item]=v; updates[BASE_PATH+'menuPrices/'+item]=v; }
+    }
+  });
+  db.ref().update(updates).then(() => admShowStatus('บันทึกราคาแล้ว ✅'));
+}
 
-        if (!isNonBatchable) {
-            // ค้นหาใบงานที่เมนูเหมือนกัน คอมเมนต์เหมือนกัน และ "ยังไม่มีใครถูกขีดฆ่าแม้แต่คนเดียว"
-            targetGroup = summaryGroups.find(g => 
-                g.item === o.item && 
-                (g.comment || "") === (o.comment || "") &&
-                !g.subOrders.some(so => so.status === 'ready')
-            );
-        }
-
-        if (targetGroup) {
-          targetGroup.totalQty += Number(o.quantity);
-          targetGroup.subOrders.push(o);
-          if (new Date(o.timestamp) < new Date(targetGroup.minTs)) {
-              targetGroup.minTs = o.timestamp;
-          }
+// ---- Firebase listeners ----
+function loadChefConfig() {
+  db.ref(BASE_PATH+'chefConfig').on('value', snap => {
+    if (snap.exists()) {
+      const raw = snap.val();
+      chefConfig = {};
+      Object.entries(raw).forEach(([id, val]) => {
+        if (id==='__nonBatchable__') {
+          nonBatchableItems = Object.values(val);
         } else {
-          summaryGroups.push({ 
-            item: o.item, 
-            comment: o.comment, 
-            totalQty: Number(o.quantity),
-            subOrders: [o],
-            minTs: o.timestamp 
-          });
+          chefConfig[id] = { name: val.name||DEFAULT_CHEF_NAMES[id]||id, keywords: Object.values(val.keywords||{}) };
         }
       });
+    } else {
+      // Migrate default
+      chefConfig = {};
+      const updates = {};
+      Object.entries(DEFAULT_CHEF_NAMES).forEach(([id, name]) => {
+        const kws = DEFAULT_CHEF_MENUS[id]||[];
+        chefConfig[id] = { name, keywords: kws };
+        const kwObj = {}; kws.forEach((k,i)=>kwObj[i]=k);
+        updates[BASE_PATH+'chefConfig/'+id] = { name, keywords: kwObj };
+      });
+      nonBatchableItems = [...DEFAULT_NONBATCHABLE];
+      const nbObj = {}; DEFAULT_NONBATCHABLE.forEach((k,i)=>nbObj[i]=k);
+      updates[BASE_PATH+'chefConfig/__nonBatchable__'] = nbObj;
+      db.ref().update(updates);
+    }
+    rebuildKitchenUI();
+    renderOrders();
+  });
+}
 
-      const sortedSummary = summaryGroups.sort((a, b) => new Date(a.minTs) - new Date(b.minTs));
-
-      sortedSummary.forEach(group => {
-        for (let [chef, menus] of Object.entries(chefMenus)) {
-          if (menus.some(m => group.item.includes(m))) {
-            const card = document.createElement('div');
-            card.className = 'order-card';
-
-            const isAllReady = group.subOrders.every(so => so.status === 'ready');
-            const groupOrderIds = JSON.stringify(group.subOrders.map(so => so.id));
-
-            let headerHtml = `<div class="card-header ${isAllReady ? 'ready' : ''}" 
-                onclick='toggleGroupReady(${JSON.stringify(groupOrderIds)}, ${isAllReady})'>
-                <span>${group.item}</span>
-                <span class="qty-circle" style="background:white; color:#007bff;">${group.totalQty}</span>
-            </div>`;
-            
-            let commentHtml = group.comment ? `<div class="card-comment">⚠️ ${group.comment}</div>` : '';
-
-            let listHtml = '<div class="table-list">';
-            group.subOrders.forEach(order => {
-                const isReady = order.status === 'ready';
-                const isHome = /[ก-๙]/.test(order.table);
-                listHtml += `
-                    <div class="table-item ${isReady ? 'ready' : ''}" onclick="event.stopPropagation(); toggleItemReady('${order.id}', '${order.status}')">
-                        <span>
-                            โต๊ะ ${order.table} ${isHome ? '<span class="home-tag">กลับบ้าน</span>' : ''}
-                        </span>
-                        <span class="qty-circle">${order.quantity}</span>
-                    </div>
-                `;
-            });
-            listHtml += '</div>';
-
-            card.innerHTML = headerHtml + commentHtml + listHtml;
-            document.getElementById('list-' + chef).appendChild(card);
-            break;
-          }
-        }
+function loadMenuCategories() {
+  db.ref(BASE_PATH+'menuConfig').on('value', snap => {
+    if (snap.exists()) {
+      const raw = snap.val();
+      menuCategories = {};
+      const catOrder = raw.catOrder || Object.keys(raw.cats||{});
+      catOrder.forEach(cat => {
+        if (raw.cats?.[cat]) menuCategories[cat] = Object.values(raw.cats[cat].items||{});
       });
     }
+  });
+}
 
-    db.ref(".info/connected").on("value", (snap) => {
-      const txt = document.getElementById('syncStatusText');
-      txt.textContent = snap.val() ? "เชื่อมต่อครัวออนไลน์" : "ขาดการเชื่อมต่อ!";
-      document.getElementById('syncStatusBar').classList.toggle('offline', !snap.val());
-    });
-  </script>
+// ---- Build dynamic chef columns & selector buttons ----
+function rebuildKitchenUI() {
+  const grid = document.getElementById('kitchenGrid');
+  const selector = document.getElementById('chefSelectorBtns');
+  grid.innerHTML = '';
+  selector.innerHTML = '';
+  activeChefs = Object.keys(chefConfig).filter(id => id!=='__nonBatchable__');
+
+  activeChefs.forEach(id => {
+    const cfg = chefConfig[id];
+    const color = CHEF_COLORS[id] || '#555';
+
+    // column
+    const col = document.createElement('div');
+    col.className = 'chef-column';
+    col.id = 'col-'+id;
+    col.innerHTML = `<h3 style="border-color:${color}; color:${color};">${cfg.name}</h3><div id="list-${id}"></div>`;
+    grid.appendChild(col);
+
+    // selector button
+    const btn = document.createElement('button');
+    btn.className = 'selector-btn active';
+    btn.id = 'selbtn-'+id;
+    btn.textContent = cfg.name;
+    btn.style.borderColor = color;
+    btn.onclick = () => {
+      if (btn.classList.contains('active')) {
+        btn.classList.remove('active');
+        btn.style.background='#f8f9fa'; btn.style.color='#555';
+        col.classList.add('hidden');
+      } else {
+        btn.classList.add('active');
+        btn.style.background=color; btn.style.color='white';
+        col.classList.remove('hidden');
+      }
+    };
+    btn.style.background = color;
+    btn.style.color = 'white';
+    selector.appendChild(btn);
+  });
+}
+
+// ---- Order rendering ----
+function toggleItemReady(id, currentStatus) {
+  db.ref(BASE_PATH+'orders/'+id+'/status').set(currentStatus==='ready'?'pending':'ready');
+}
+function toggleGroupReady(orderIdsStr, isAllReady) {
+  const ids = JSON.parse(orderIdsStr);
+  const updates = {};
+  ids.forEach(id => updates[BASE_PATH+'orders/'+id+'/status'] = isAllReady?'pending':'ready');
+  db.ref().update(updates);
+}
+
+function getChefForMenu(itemName) {
+  for (let [id, cfg] of Object.entries(chefConfig)) {
+    if (id==='__nonBatchable__') continue;
+    if ((cfg.keywords||[]).some(kw => itemName.includes(kw))) return id;
+  }
+  return null;
+}
+
+function renderOrders() {
+  activeChefs.forEach(id => {
+    const el = document.getElementById('list-'+id);
+    if (el) el.innerHTML = '';
+  });
+
+  const summaryGroups = [];
+  currentOrders.forEach(o => {
+    const isNonB = nonBatchableItems.includes(o.item);
+    let target = null;
+    if (!isNonB) {
+      target = summaryGroups.find(g =>
+        g.item===o.item &&
+        (g.comment||'')===(o.comment||'') &&
+        !g.subOrders.some(so => so.status==='ready')
+      );
+    }
+    if (target) {
+      target.totalQty += Number(o.quantity);
+      target.subOrders.push(o);
+      if (new Date(o.timestamp) < new Date(target.minTs)) target.minTs = o.timestamp;
+    } else {
+      summaryGroups.push({ item:o.item, comment:o.comment, totalQty:Number(o.quantity), subOrders:[o], minTs:o.timestamp });
+    }
+  });
+
+  summaryGroups.sort((a,b) => new Date(a.minTs)-new Date(b.minTs)).forEach(group => {
+    const chefId = getChefForMenu(group.item);
+    if (!chefId) return;
+    const listEl = document.getElementById('list-'+chefId);
+    if (!listEl) return;
+
+    const color = CHEF_COLORS[chefId] || '#007bff';
+    const isAllReady = group.subOrders.every(so => so.status==='ready');
+    const groupIds = JSON.stringify(group.subOrders.map(so=>so.id));
+
+    let tablesHtml = group.subOrders.map(order => {
+      const isReady = order.status==='ready';
+      const isHome = /[ก-๙]/.test(order.table);
+      return `<div class="table-item ${isReady?'ready':''}" onclick="event.stopPropagation(); toggleItemReady('${order.id}','${order.status}')">
+        <span>โต๊ะ ${order.table}${isHome?` <span class="home-tag">กลับบ้าน</span>`:''}</span>
+        <span class="qty-circle" style="${isReady?'':'background:'+color}">${order.quantity}</span>
+      </div>`;
+    }).join('');
+
+    const card = document.createElement('div');
+    card.className = 'order-card';
+    card.style.borderColor = color;
+    card.innerHTML = `
+      <div class="card-header ${isAllReady?'ready':''}" style="${isAllReady?'':'background:'+color}"
+        onclick='toggleGroupReady(${JSON.stringify(groupIds)}, ${isAllReady})'>
+        <span>${group.item}</span>
+        <span class="qty-circle" style="background:white; color:${color};">${group.totalQty}</span>
+      </div>
+      ${group.comment?`<div class="card-comment">⚠️ ${group.comment}</div>`:''}
+      <div class="table-list">${tablesHtml}</div>`;
+    listEl.appendChild(card);
+  });
+}
+
+// ---- Boot ----
+window.addEventListener('load', () => {
+  db.ref(BASE_PATH+'menuPrices').on('value', snap => { menuPrices = snap.val()||{}; });
+  loadMenuCategories();
+  loadChefConfig();
+
+  db.ref(BASE_PATH+'orders').on('value', snap => {
+    const data = snap.val();
+    currentOrders = data ? Object.entries(data).map(([id,val])=>({id,...val})) : [];
+    renderOrders();
+  });
+
+  db.ref('.info/connected').on('value', snap => {
+    document.getElementById('syncStatusText').textContent = snap.val() ? 'เชื่อมต่อครัวออนไลน์' : 'ขาดการเชื่อมต่อ!';
+    document.getElementById('syncStatusBar').classList.toggle('offline', !snap.val());
+  });
+});
+
+// ---- Tab 4: จัดการสั่งแยก/รวม (nonBatchable) ----
+let nbCurrentFilter = 'all';
+
+function nbSetFilter(f) {
+  nbCurrentFilter = f;
+  const map = { all:'nbBtnAll', split:'nbBtnSplit', merge:'nbBtnMerge' };
+  Object.entries(map).forEach(([k, btnId]) => {
+    const btn = document.getElementById(btnId);
+    if (!btn) return;
+    const isActive = k === f;
+    btn.style.background = isActive ? '#e67e22' : '#f8f9fa';
+    btn.style.color = isActive ? 'white' : '#555';
+    btn.style.borderColor = isActive ? '#e67e22' : '#ddd';
+  });
+  renderNonBatchTab();
+}
+
+function renderNonBatchTab() {
+  const q = (document.getElementById('nbSearch')?.value || '').trim();
+  const allMenus = [...new Set(Object.values(menuCategories).flat())].sort((a,b)=>a.localeCompare(b,'th'));
+
+  let filtered = allMenus;
+  if (q) filtered = filtered.filter(m => m.includes(q));
+  if (nbCurrentFilter === 'split') filtered = filtered.filter(m => nonBatchableItems.includes(m));
+  if (nbCurrentFilter === 'merge') filtered = filtered.filter(m => !nonBatchableItems.includes(m));
+
+  const container = document.getElementById('nbMenuList');
+  if (!container) return;
+
+  if (filtered.length === 0) {
+    container.innerHTML = '<p style="color:#aaa; text-align:center; padding:24px; font-size:14px;">ไม่พบเมนู</p>';
+    return;
+  }
+
+  const splitCount = allMenus.filter(m => nonBatchableItems.includes(m)).length;
+  const mergeCount = allMenus.length - splitCount;
+
+  container.innerHTML = `
+    <div style="display:flex; justify-content:space-between; padding:8px 14px; background:#f8f9fa; border-bottom:1px solid #eee; font-size:12px; color:#888;">
+      <span>🔴 สั่งแยก: <strong style="color:#e74c3c;">${splitCount}</strong></span>
+      <span>🟢 รวมได้: <strong style="color:#27ae60;">${mergeCount}</strong></span>
+      <span>ทั้งหมด: <strong>${allMenus.length}</strong></span>
+    </div>
+    ${filtered.map(item => {
+      const isSplit = nonBatchableItems.includes(item);
+      const safeItem = item.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+      return `<div style="display:flex; align-items:center; justify-content:space-between; padding:13px 16px; border-bottom:1px solid #f0f0f0; background:${isSplit?'#fff8f5':'white'};">
+        <span style="flex:1; font-size:15px; font-weight:${isSplit?'bold':'normal'}; color:${isSplit?'#c0392b':'#2c3e50'};">
+          ${isSplit ? '🔴' : '🟢'} ${item}
+        </span>
+        <div style="display:flex; align-items:center; gap:8px;">
+          <span style="font-size:13px; color:${isSplit?'#e74c3c':'#27ae60'}; font-weight:bold; min-width:28px; text-align:right;">${isSplit?'แยก':'รวม'}</span>
+          <div onclick="toggleNonBatch('${safeItem}', ${isSplit})"
+            style="width:46px; height:26px; border-radius:13px; background:${isSplit?'#e74c3c':'#27ae60'}; position:relative; cursor:pointer; flex-shrink:0; box-shadow:inset 0 1px 3px rgba(0,0,0,0.15);">
+            <div style="width:20px; height:20px; border-radius:50%; background:white; position:absolute; top:3px; ${isSplit?'right:3px':'left:3px'}; box-shadow:0 1px 3px rgba(0,0,0,0.3);"></div>
+          </div>
+        </div>
+      </div>`;
+    }).join('')}`;
+}
+
+function toggleNonBatch(itemName, currentlySplit) {
+  const statusEl = document.getElementById('nbStatus');
+  if (currentlySplit) {
+    nonBatchableItems = nonBatchableItems.filter(x => x !== itemName);
+  } else {
+    if (!nonBatchableItems.includes(itemName)) nonBatchableItems.push(itemName);
+  }
+  const nbObj = {};
+  nonBatchableItems.forEach((k, i) => nbObj[i] = k);
+  db.ref(BASE_PATH + 'chefConfig/__nonBatchable__').set(nbObj).then(() => {
+    if (statusEl) {
+      statusEl.style.color = '#27ae60';
+      statusEl.textContent = currentlySplit
+        ? `✅ "${itemName}" → เปลี่ยนเป็น รวมได้แล้ว`
+        : `✅ "${itemName}" → เปลี่ยนเป็น สั่งแยกแล้ว`;
+      setTimeout(() => statusEl.textContent = '', 2500);
+    }
+    admShowStatus('บันทึกแล้ว ✅');
+    renderNonBatchTab();
+    renderOrders();
+  }).catch(e => {
+    if (statusEl) { statusEl.style.color = '#e74c3c'; statusEl.textContent = '❌ ' + e.message; }
+  });
+}
+</script>
 </body>
 </html>
