@@ -671,58 +671,142 @@ function renderOrders() {
     if (el) el.innerHTML = '';
   });
 
-  const summaryGroups = [];
+  // batchable items -> grouped across ALL tables into one card (as before)
+  const batchGroups = [];
+  // non-batchable items -> grouped PER TABLE + PER ITEM into one block,
+  // with each ordered plate/unit shown as its own individually-tickable row
+  const nonbBlocks = [];
+
   currentOrders.forEach(o => {
     const isNonB = nonBatchableItems.includes(o.item);
-    let target = null;
+
     if (!isNonB) {
-      target = summaryGroups.find(g =>
+      const target = batchGroups.find(g =>
         g.item===o.item &&
         (g.comment||'')===(o.comment||'') &&
         !g.subOrders.some(so => so.status==='ready')
       );
-    }
-    if (target) {
-      target.totalQty += Number(o.quantity);
-      target.subOrders.push(o);
-      if (new Date(o.timestamp) < new Date(target.minTs)) target.minTs = o.timestamp;
+      if (target) {
+        target.totalQty += Number(o.quantity);
+        target.subOrders.push(o);
+        if (new Date(o.timestamp) < new Date(target.minTs)) target.minTs = o.timestamp;
+      } else {
+        batchGroups.push({ type:'batch', item:o.item, comment:o.comment, totalQty:Number(o.quantity), subOrders:[o], minTs:o.timestamp });
+      }
     } else {
-      summaryGroups.push({ item:o.item, comment:o.comment, totalQty:Number(o.quantity), subOrders:[o], minTs:o.timestamp });
+      // non-batchable = ทำพร้อมกันไม่ได้ ต้องต่อคิวตามเวลาสั่งจริงของแต่ละรอบ
+      // จึงไม่รวมกับออเดอร์อื่นของโต๊ะเดียวกันที่สั่งมาคนละรอบ แม้เมนู/คอมเมนต์จะเหมือนกันก็ตาม
+      const qty = Math.max(1, Number(o.quantity) || 1);
+      const doneUnits = o.doneUnits || {};
+      const block = { type:'nonb', item:o.item, comment:o.comment, table:o.table, units:[], minTs:o.timestamp };
+      for (let i=0; i<qty; i++) {
+        block.units.push({ orderId:o.id, unitIndex:i, quantity:qty, done: !!doneUnits[i], timestamp:o.timestamp });
+      }
+      nonbBlocks.push(block);
     }
   });
 
-  summaryGroups.sort((a,b) => new Date(a.minTs)-new Date(b.minTs)).forEach(group => {
+  const allCards = [...batchGroups, ...nonbBlocks].sort((a,b) => new Date(a.minTs)-new Date(b.minTs));
+
+  allCards.forEach(group => {
     const chefId = getChefForMenu(group.item);
     if (!chefId) return;
     const listEl = document.getElementById('list-'+chefId);
     if (!listEl) return;
-
     const color = CHEF_COLORS[chefId] || '#007bff';
-    const isAllReady = group.subOrders.every(so => so.status==='ready');
-    const groupIds = JSON.stringify(group.subOrders.map(so=>so.id));
 
-    let tablesHtml = group.subOrders.map(order => {
-      const isReady = order.status==='ready';
-      const isHome = /[ก-๙]/.test(order.table);
-      return `<div class="table-item ${isReady?'ready':''}" onclick="event.stopPropagation(); toggleItemReady('${order.id}','${order.status}')">
-        <span>โต๊ะ ${order.table}${isHome?` <span class="home-tag">กลับบ้าน</span>`:''}</span>
-        <span class="qty-circle" style="${isReady?'':'background:'+color}">${order.quantity}</span>
-      </div>`;
-    }).join('');
+    if (group.type === 'batch') {
+      const isAllReady = group.subOrders.every(so => so.status==='ready');
+      const groupIds = JSON.stringify(group.subOrders.map(so=>so.id));
 
-    const card = document.createElement('div');
-    card.className = 'order-card';
-    card.style.borderColor = color;
-    card.innerHTML = `
-      <div class="card-header ${isAllReady?'ready':''}" style="${isAllReady?'':'background:'+color}"
-        onclick='toggleGroupReady(${JSON.stringify(groupIds)}, ${isAllReady})'>
-        <span>${group.item}</span>
-        <span class="qty-circle" style="background:white; color:${color};">${group.totalQty}</span>
-      </div>
-      ${group.comment?`<div class="card-comment">⚠️ ${group.comment}</div>`:''}
-      <div class="table-list">${tablesHtml}</div>`;
-    listEl.appendChild(card);
+      let tablesHtml = group.subOrders.map(order => {
+        const isReady = order.status==='ready';
+        const isHome = /[ก-๙]/.test(order.table);
+        return `<div class="table-item ${isReady?'ready':''}" onclick="event.stopPropagation(); toggleItemReady('${order.id}','${order.status}')">
+          <span>โต๊ะ ${order.table}${isHome?` <span class="home-tag">กลับบ้าน</span>`:''}</span>
+          <span class="qty-circle" style="${isReady?'':'background:'+color}">${order.quantity}</span>
+        </div>`;
+      }).join('');
+
+      const card = document.createElement('div');
+      card.className = 'order-card';
+      card.style.borderColor = color;
+      card.innerHTML = `
+        <div class="card-header ${isAllReady?'ready':''}" style="${isAllReady?'':'background:'+color}"
+          onclick='toggleGroupReady(${JSON.stringify(groupIds)}, ${isAllReady})'>
+          <span>${group.item}</span>
+          <span class="qty-circle" style="background:white; color:${color};">${group.totalQty}</span>
+        </div>
+        ${group.comment?`<div class="card-comment">⚠️ ${group.comment}</div>`:''}
+        <div class="table-list">${tablesHtml}</div>`;
+      listEl.appendChild(card);
+
+    } else {
+      // non-batchable block: one card per table+item, each plate is its own row
+      const units = group.units.slice().sort((a,b) => {
+        if (a.orderId !== b.orderId) return new Date(a.timestamp)-new Date(b.timestamp);
+        return a.unitIndex - b.unitIndex;
+      });
+      const totalQty = units.length;
+      const remainingQty = units.filter(u => !u.done).length;
+      const isAllReady = units.every(u => u.done);
+      const isHome = /[ก-๙]/.test(group.table);
+
+      const unitsPayload = JSON.stringify(units.map(u => ({ orderId:u.orderId, unitIndex:u.unitIndex, quantity:u.quantity })));
+
+      let unitsHtml = units.map((u, idx) => {
+        return `<div class="table-item ${u.done?'ready':''}" onclick="event.stopPropagation(); toggleNonBUnit('${u.orderId}', ${u.unitIndex}, ${u.done}, ${u.quantity})">
+          <span>โต๊ะ ${group.table}${isHome?` <span class="home-tag">กลับบ้าน</span>`:''}</span>
+          <span class="qty-circle" style="${u.done?'':'background:'+color}">${u.done?'✓':''}</span>
+        </div>`;
+      }).join('');
+
+      const card = document.createElement('div');
+      card.className = 'order-card';
+      card.style.borderColor = color;
+      card.innerHTML = `
+        <div class="card-header ${isAllReady?'ready':''}" style="${isAllReady?'':'background:'+color}"
+          onclick='toggleNonBBlock(${JSON.stringify(unitsPayload)}, ${isAllReady})'>
+          <span>${group.item} — โต๊ะ ${group.table}${isHome?` <span class="home-tag">กลับบ้าน</span>`:''}</span>
+          <span class="qty-circle" style="background:white; color:${color};">${remainingQty}</span>
+        </div>
+        ${group.comment?`<div class="card-comment">⚠️ ${group.comment}</div>`:''}
+        <div class="table-list">${unitsHtml}</div>`;
+      listEl.appendChild(card);
+    }
   });
+}
+
+// toggle a single plate/unit of a non-batchable order (does NOT affect the other plates)
+function toggleNonBUnit(orderId, unitIndex, currentlyDone, quantity) {
+  const newDone = !currentlyDone;
+  const order = currentOrders.find(o => o.id === orderId);
+  const doneUnits = Object.assign({}, (order && order.doneUnits) || {});
+  doneUnits[unitIndex] = newDone;
+
+  let allDone = true;
+  for (let i=0; i<quantity; i++) { if (!doneUnits[i]) { allDone = false; break; } }
+
+  const updates = {};
+  updates[BASE_PATH+'orders/'+orderId+'/doneUnits/'+unitIndex] = newDone;
+  updates[BASE_PATH+'orders/'+orderId+'/status'] = allDone ? 'ready' : 'pending';
+  db.ref().update(updates);
+}
+
+// toggle ALL plates within a table+item block at once (from the card header)
+function toggleNonBBlock(unitsPayloadStr, isAllReady) {
+  const units = JSON.parse(unitsPayloadStr);
+  const newDone = !isAllReady;
+  const updates = {};
+  const touchedOrderQty = {};
+  units.forEach(u => {
+    updates[BASE_PATH+'orders/'+u.orderId+'/doneUnits/'+u.unitIndex] = newDone;
+    touchedOrderQty[u.orderId] = u.quantity;
+  });
+  Object.keys(touchedOrderQty).forEach(oid => {
+    updates[BASE_PATH+'orders/'+oid+'/status'] = newDone ? 'ready' : 'pending';
+  });
+  db.ref().update(updates);
 }
 
 // ---- Boot ----
