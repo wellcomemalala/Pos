@@ -12,6 +12,35 @@
 
     #syncStatusBar { position:fixed; top:0; left:0; right:0; height:35px; background:#27ae60; color:white; display:flex; align-items:center; justify-content:center; font-size:16px; font-weight:bold; z-index:1001; gap:12px; }
     #syncStatusBar.offline { background:#c0392b; }
+
+    /* ================= สไตล์ Offline Blocking Overlay ================= */
+    #offlineOverlay {
+      display: none;
+      position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(20, 10, 10, 0.92);
+      z-index: 10000;
+      align-items: center; justify-content: center;
+      backdrop-filter: blur(2px);
+    }
+    #offlineOverlay.show { display: flex; }
+    #offlineBox {
+      background: white; border-radius: 20px; padding: 40px 32px;
+      max-width: 420px; width: 90%; text-align: center;
+      box-shadow: 0 16px 48px rgba(0,0,0,0.5);
+      border: 3px solid #e74c3c;
+    }
+    #offlineIcon { font-size: 56px; margin-bottom: 8px; animation: offlinePulse 1.2s infinite; }
+    #offlineBox h2 { color: #c0392b; font-size: 28px; margin: 8px 0; }
+    #offlineBox p { color: #555; font-size: 17px; line-height: 1.5; margin: 12px 0 20px; }
+    #offlineSpinner {
+      width: 36px; height: 36px; margin: 0 auto 12px;
+      border: 4px solid #f1c2c2; border-top-color: #e74c3c;
+      border-radius: 50%; animation: offlineSpin 0.8s linear infinite;
+    }
+    #offlineWaitText { color: #e74c3c; font-size: 15px; font-weight: bold; }
+    @keyframes offlineSpin { to { transform: rotate(360deg); } }
+    @keyframes offlinePulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
+    /* ================= จบสไตล์ Offline Blocking Overlay ================= */
     #adminBtn { background:rgba(255,255,255,0.2); border:1px solid rgba(255,255,255,0.5); color:white; font-size:13px; padding:3px 10px; border-radius:6px; cursor:pointer; font-weight:bold; }
     #adminBtn:hover { background:rgba(255,255,255,0.35); }
 
@@ -122,6 +151,19 @@
   <span id="syncStatusText">กำลังเชื่อมต่อ...</span>
   <button id="adminBtn" onclick="openKitchenPin()">⚙️ จัดการ</button>
 </div>
+
+<!-- ================= Offline Blocking Overlay ================= -->
+<div id="offlineOverlay">
+  <div id="offlineBox">
+    <div id="offlineIcon">📡</div>
+    <h2>การเชื่อมต่อขาดหาย</h2>
+    <p>กรุณาตรวจสอบสัญญาณอินเทอร์เน็ต / WiFi ก่อนใช้งานต่อ<br>
+       ระบบจะปลดล็อกให้อัตโนมัติเมื่อเชื่อมต่อกลับมา</p>
+    <div id="offlineSpinner"></div>
+    <div id="offlineWaitText">กำลังรอการเชื่อมต่อ...</div>
+  </div>
+</div>
+<!-- ================= จบ Offline Blocking Overlay ================= -->
 
 <!-- PIN Modal -->
 <div id="kitchenPinOverlay">
@@ -818,13 +860,36 @@ window.addEventListener('load', () => {
 
   db.ref(BASE_PATH+'orders').on('value', snap => {
     const data = snap.val();
-    currentOrders = data ? Object.entries(data).map(([id,val])=>({id,...val})) : [];
+    const rawOrders = data ? Object.entries(data).map(([id,val])=>({id,...val})) : [];
+    // --- กันออเดอร์ผี: บาง record อาจเหลือแค่บาง field (เช่น status) เพราะเครื่องหนึ่งออฟไลน์แล้วมี
+    // เครื่องอื่นลบออเดอร์นั้นไปก่อนที่คำสั่งค้างจะ sync กลับมา ทำให้ path ถูกสร้างใหม่แบบข้อมูลไม่ครบ
+    // (ไม่มี table/item) -> กรองไม่ให้แสดง และลบทิ้งออกจากฐานข้อมูลอัตโนมัติ
+    const ghostOrders = rawOrders.filter(o => !o.table || !o.item);
+    if (ghostOrders.length > 0) {
+      ghostOrders.forEach(o => db.ref(BASE_PATH+'orders/'+o.id).remove());
+    }
+    currentOrders = rawOrders.filter(o => o.table && o.item);
     renderOrders();
   });
 
+  let offlineSince = null; // เวลาที่เริ่มหลุด ใช้กันการเด้งเตือนเร็วเกินไปตอนหลุดแป๊บเดียว
   db.ref('.info/connected').on('value', snap => {
+    const overlay = document.getElementById('offlineOverlay');
     document.getElementById('syncStatusText').textContent = snap.val() ? 'เชื่อมต่อครัวออนไลน์' : 'ขาดการเชื่อมต่อ!';
     document.getElementById('syncStatusBar').classList.toggle('offline', !snap.val());
+
+    if (snap.val()) {
+      window.isOnline = true;
+      offlineSince = null;
+      overlay.classList.remove('show'); // ปลดล็อกหน้าจอทันทีที่กลับมาออนไลน์
+    } else {
+      window.isOnline = false;
+      if (!offlineSince) offlineSince = Date.now();
+      // หน่วง 1.5 วิ ก่อนเด้ง overlay กันหลุดสัญญาณแป๊บเดียวๆ (blip) แล้วรบกวนการทำงาน
+      setTimeout(() => {
+        if (!window.isOnline && offlineSince) overlay.classList.add('show');
+      }, 1500);
+    }
   });
 });
 
