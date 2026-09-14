@@ -14,9 +14,13 @@
     #syncStatusBar.offline { background:#c0392b; }
 
     /* ================= แถบเตือน "คิวค้างนานสุด" ================= */
-    #queueAlertBar { position:fixed; top:35px; left:0; right:0; height:36px; background:#34495e; color:white; display:flex; align-items:center; justify-content:center; font-size:16px; font-weight:bold; z-index:1000; gap:8px; cursor:pointer; padding:0 12px; text-align:center; transition:background 0.3s; }
-    #queueAlertBar.urgent { background:#e74c3c; animation: alertPulseBg 1.2s infinite; }
-    @keyframes alertPulseBg { 0%,100% { background:#e74c3c; } 50% { background:#c0392b; } }
+    #queueAlertBar { position:fixed; top:35px; left:0; right:0; min-height:36px; background:#34495e; color:white; display:flex; align-items:center; justify-content:center; flex-wrap:wrap; gap:6px 10px; font-size:15px; font-weight:bold; z-index:1000; padding:6px 12px; text-align:center; box-sizing:border-box; transition:background 0.3s; }
+    #queueAlertBar.urgent { animation: alertPulseBg 1.2s infinite; }
+    @keyframes alertPulseBg { 0%,100% { background:#34495e; } 50% { background:#c0392b; } }
+    .queue-alert-label { flex:0 0 auto; }
+    .queue-alert-chips { display:flex; flex-wrap:wrap; gap:6px; justify-content:center; }
+    .queue-alert-chip { display:inline-flex; align-items:center; gap:3px; background:rgba(255,255,255,0.12); border:2px solid #7f8c8d; border-radius:14px; padding:3px 10px; font-size:14px; font-weight:600; cursor:pointer; white-space:nowrap; }
+    .queue-alert-chip.chip-urgent { background:rgba(231,76,60,0.85); border-color:#ffdcdc; }
     @keyframes pulseHighlight { 0%,100% { box-shadow:0 6px 15px rgba(0,0,0,0.05); } 50% { box-shadow:0 0 0 8px rgba(231,76,60,0.65); } }
     .pulse-highlight { animation: pulseHighlight 0.6s ease-in-out 3; }
     /* ================= จบแถบเตือนคิวค้างนานสุด ================= */
@@ -179,8 +183,8 @@
   <button id="adminBtn" onclick="openKitchenPin()">⚙️ จัดการ</button>
 </div>
 
-<div id="queueAlertBar" onclick="focusOldestChef()">
-  <span id="queueAlertText">✅ ไม่มีคิวค้างนาน</span>
+<div id="queueAlertBar">
+  <span>✅ ไม่มีคิวค้างนาน</span>
 </div>
 
 <!-- ================= Offline Blocking Overlay ================= -->
@@ -814,9 +818,9 @@ function renderOrders() {
 
   const allCards = [...batchGroups, ...nonbBlocks].sort((a,b) => new Date(a.minTs)-new Date(b.minTs));
 
-  // ---- หาออเดอร์ที่ "รอนานที่สุด" (ยังไม่เสร็จ) ในทุกคอลัมน์ ไว้แจ้งเตือนบนแถบด้านบน ----
+  // ---- หาออเดอร์ที่ "รอนานที่สุด" (ยังไม่เสร็จ) 3 อันดับแรก ในทุกคอลัมน์ ไว้แจ้งเตือนบนแถบด้านบน ----
   // ทำตรงนี้เพื่อให้ไม่ตกหล่น ต่อให้คอลัมน์ของแม่ครัวคนนั้นจะยังไม่ถูกเลื่อนไปดูก็ตาม
-  let oldestPending = null;
+  const pendingList = [];
 
   allCards.forEach(group => {
     const chefId = getChefForMenu(group.item);
@@ -829,11 +833,11 @@ function renderOrders() {
       const isAllReady = group.subOrders.every(so => so.status==='ready');
       const groupIds = JSON.stringify(group.subOrders.map(so=>so.id));
 
-      if (!isAllReady && (!oldestPending || new Date(group.minTs) < new Date(oldestPending.ts))) {
-        oldestPending = {
+      if (!isAllReady) {
+        pendingList.push({
           chefId, chefName: (chefConfig[chefId] && chefConfig[chefId].name) || chefId,
           item: group.item, table: group.subOrders[0] && group.subOrders[0].table, ts: group.minTs
-        };
+        });
       }
 
       let tablesHtml = group.subOrders.map(order => {
@@ -869,11 +873,11 @@ function renderOrders() {
       const isAllReady = units.every(u => u.done);
       const isHome = /[ก-๙]/.test(group.table);
 
-      if (!isAllReady && (!oldestPending || new Date(group.minTs) < new Date(oldestPending.ts))) {
-        oldestPending = {
+      if (!isAllReady) {
+        pendingList.push({
           chefId, chefName: (chefConfig[chefId] && chefConfig[chefId].name) || chefId,
           item: group.item, table: group.table, ts: group.minTs
-        };
+        });
       }
 
       const unitsPayload = JSON.stringify(units.map(u => ({ orderId:u.orderId, unitIndex:u.unitIndex, quantity:u.quantity })));
@@ -900,40 +904,63 @@ function renderOrders() {
     }
   });
 
-  oldestPendingInfo = oldestPending;
+  pendingQueueTop3 = pendingList
+    .sort((a,b) => new Date(a.ts) - new Date(b.ts))
+    .slice(0, 3);
   updateQueueAlertDisplay();
 }
 
-// ---- แถบเตือน "คิวค้างนานสุด" ----
-let oldestPendingInfo = null;
+// ---- แถบเตือน "คิวค้างนานสุด" (3 อันดับแรก) ----
+let pendingQueueTop3 = [];
 
 function updateQueueAlertDisplay() {
   const bar = document.getElementById('queueAlertBar');
-  const text = document.getElementById('queueAlertText');
-  if (!bar || !text) return;
+  if (!bar) return;
 
-  if (!oldestPendingInfo) {
+  if (!pendingQueueTop3.length) {
     bar.classList.remove('urgent');
     bar.style.background = '#34495e';
-    text.textContent = '✅ ไม่มีคิวค้างนาน';
+    bar.innerHTML = `<span>✅ ไม่มีคิวค้างนาน</span>`;
+    adjustLayoutOffsets();
     return;
   }
 
-  const mins = Math.max(0, Math.floor((Date.now() - new Date(oldestPendingInfo.ts).getTime()) / 60000));
-  const isUrgent = mins >= 10;
-  bar.classList.toggle('urgent', isUrgent);
-  if (!isUrgent) bar.style.background = CHEF_COLORS[oldestPendingInfo.chefId] || '#34495e';
+  const chipsHtml = pendingQueueTop3.map((p, idx) => {
+    const mins = Math.max(0, Math.floor((Date.now() - new Date(p.ts).getTime()) / 60000));
+    const isUrgent = mins >= 10;
+    const tableTxt = p.table ? ` (โต๊ะ ${p.table})` : '';
+    const chipColor = CHEF_COLORS[p.chefId] || '#7f8c8d';
+    return `<span class="queue-alert-chip ${isUrgent?'chip-urgent':''}" style="border-color:${chipColor};" onclick="focusChef('${p.chefId}')">
+      <b>${idx+1}.</b> ${p.chefName} · ${p.item}${tableTxt} · ${mins} นาที
+    </span>`;
+  }).join('');
 
-  const tableTxt = oldestPendingInfo.table ? ` (โต๊ะ ${oldestPendingInfo.table})` : '';
-  text.textContent = `⏰ รอนานสุด: ${oldestPendingInfo.chefName} — ${oldestPendingInfo.item}${tableTxt} • ${mins} นาที · แตะดู`;
+  const anyUrgent = pendingQueueTop3.some(p => (Date.now() - new Date(p.ts).getTime()) >= 10*60000);
+  bar.classList.toggle('urgent', anyUrgent);
+  bar.style.background = '#34495e';
+  bar.innerHTML = `<span class="queue-alert-label">⏰ คิวรอนานสุด:</span><div class="queue-alert-chips">${chipsHtml}</div>`;
+  adjustLayoutOffsets();
 }
 // รีเฟรชตัวเลข "รอมาแล้วกี่นาที" เป็นระยะ แม้ยังไม่มีออเดอร์ใหม่เข้ามา
 setInterval(updateQueueAlertDisplay, 15000);
 
-// แตะแถบเตือน -> ไฮไลต์คอลัมน์ของแม่ครัวที่มีคิวค้างนานสุด ให้สังเกตง่าย
-function focusOldestChef() {
-  if (!oldestPendingInfo) return;
-  const col = document.getElementById('col-' + oldestPendingInfo.chefId);
+// เผื่อจำนวนบรรทัดของแถบเตือนเปลี่ยน (1 บรรทัด vs 2 บรรทัดตอนจอแคบ) ให้ดันเนื้อหาด้านล่างลงมาตามจริงเสมอ
+function adjustLayoutOffsets() {
+  const sync = document.getElementById('syncStatusBar');
+  const alertBar = document.getElementById('queueAlertBar');
+  const controls = document.querySelector('.controls');
+  if (!sync || !alertBar || !controls) return;
+  requestAnimationFrame(() => {
+    const totalHeight = sync.offsetHeight + alertBar.offsetHeight + 10;
+    controls.style.marginTop = totalHeight + 'px';
+    fitKitchenGridHeight();
+  });
+}
+window.addEventListener('resize', adjustLayoutOffsets);
+
+// แตะชื่อแม่ครัวในแถบเตือน -> ไฮไลต์คอลัมน์นั้น ให้สังเกตง่าย
+function focusChef(chefId) {
+  const col = document.getElementById('col-' + chefId);
   if (!col) return;
   col.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
   col.classList.add('pulse-highlight');
