@@ -21,6 +21,8 @@
     .queue-alert-chips { display:flex; flex-wrap:wrap; gap:6px; justify-content:center; }
     .queue-alert-chip { display:inline-flex; align-items:center; gap:3px; background:rgba(255,255,255,0.12); border:2px solid #7f8c8d; border-radius:14px; padding:3px 10px; font-size:14px; font-weight:600; cursor:pointer; white-space:nowrap; }
     .queue-alert-chip.chip-urgent { background:rgba(231,76,60,0.85); border-color:#ffdcdc; }
+    .chip-comment { background:#fff3cd; color:#856404; padding:1px 7px; border-radius:8px; margin:0 2px; }
+    .home-tag-sm { font-size:12px; padding:1px 4px; margin-left:3px; }
     @keyframes pulseHighlight { 0%,100% { box-shadow:0 6px 15px rgba(0,0,0,0.05); } 50% { box-shadow:0 0 0 8px rgba(231,76,60,0.65); } }
     .pulse-highlight { animation: pulseHighlight 0.6s ease-in-out 3; }
     /* ================= จบแถบเตือนคิวค้างนานสุด ================= */
@@ -836,7 +838,7 @@ function renderOrders() {
       if (!isAllReady) {
         pendingList.push({
           chefId, chefName: (chefConfig[chefId] && chefConfig[chefId].name) || chefId,
-          item: group.item, table: group.subOrders[0] && group.subOrders[0].table, ts: group.minTs
+          item: group.item, comment: group.comment, table: group.subOrders[0] && group.subOrders[0].table, ts: group.minTs
         });
       }
 
@@ -876,7 +878,7 @@ function renderOrders() {
       if (!isAllReady) {
         pendingList.push({
           chefId, chefName: (chefConfig[chefId] && chefConfig[chefId].name) || chefId,
-          item: group.item, table: group.table, ts: group.minTs
+          item: group.item, comment: group.comment, table: group.table, ts: group.minTs
         });
       }
 
@@ -928,10 +930,12 @@ function updateQueueAlertDisplay() {
   const chipsHtml = pendingQueueTop3.map((p, idx) => {
     const mins = Math.max(0, Math.floor((Date.now() - new Date(p.ts).getTime()) / 60000));
     const isUrgent = mins >= 10;
-    const tableTxt = p.table ? ` (โต๊ะ ${p.table})` : '';
+    const isHome = p.table && /[ก-๙]/.test(p.table);
+    const tableTxt = p.table ? ` (โต๊ะ ${p.table}${isHome?` <span class="home-tag home-tag-sm">กลับบ้าน</span>`:''})` : '';
+    const commentTxt = p.comment ? ` <span class="chip-comment">⚠️ ${p.comment}</span>` : '';
     const chipColor = CHEF_COLORS[p.chefId] || '#7f8c8d';
     return `<span class="queue-alert-chip ${isUrgent?'chip-urgent':''}" style="border-color:${chipColor};" onclick="focusChef('${p.chefId}')">
-      <b>${idx+1}.</b> ${p.chefName} · ${p.item}${tableTxt} · ${mins} นาที
+      <b>${idx+1}.</b> ${p.chefName} · ${p.item}${commentTxt}${tableTxt} · ${mins} นาที
     </span>`;
   }).join('');
 
