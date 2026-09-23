@@ -99,6 +99,24 @@
     .home-tag { color:#e74c3c; font-size:18px; margin-left:10px; border:2px solid #e74c3c; padding:2px 5px; border-radius:5px; }
     .hidden { display:none !important; }
 
+    /* ===== [NEW] แตะ 2 ครั้งเพื่อยืนยันว่าเสร็จ ===== */
+    .tap-armed { background:#ffefc2 !important; color:#8a5a00 !important; text-decoration:none !important; }
+    .tap-armed .qty-circle { background:#f39c12 !important; color:#fff !important; }
+    .tap-armed::after { content:'👆 แตะอีกครั้ง'; font-size:0.55em; font-weight:bold; color:#b9770e; margin-left:8px; white-space:nowrap; animation:tapBlink .7s ease-in-out infinite alternate; }
+    @keyframes tapBlink { from { opacity:1; } to { opacity:0.25; } }
+
+    /* ===== [NEW] ปัดซ้ายเพื่อซ่อน / เรียกกลับ ===== */
+    .card-wrap { position:relative; overflow:hidden; border-radius:15px; margin-bottom:15px; }
+    .card-wrap > .order-card { margin-bottom:0; transition:transform .18s ease; position:relative; z-index:2; }
+    .card-wrap.swiped > .order-card { transform:translateX(-100px); }
+    .hdr-wrap { position:relative; overflow:hidden; flex:0 0 auto; }
+    .hdr-wrap > h3 { transition:transform .18s ease; position:relative; z-index:2; background:#fff; }
+    .hdr-wrap.swiped > h3 { transform:translateX(-118px); }
+    .swipe-btn { position:absolute; top:0; right:0; height:100%; border:0; color:#fff; font-weight:bold; font-size:15px; line-height:1.3; cursor:pointer; z-index:1; display:flex; align-items:center; justify-content:center; text-align:center; }
+    .swipe-hide { width:100px; background:#8e44ad; }
+    .swipe-show { width:118px; background:#16a085; }
+    .hid-badge { align-items:center; margin-left:8px; font-size:0.5em; background:#8e44ad; color:#fff; padding:3px 9px; border-radius:11px; vertical-align:middle; }
+
     /* ====== Admin Panel ====== */
     #adminOverlay { display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.75); z-index:10000; overflow-y:auto; padding:10px; box-sizing:border-box; }
     #adminOverlay.show { display:block; }
@@ -357,6 +375,18 @@ const firebaseConfig = {
   messagingSenderId: "846236839338",
   appId: "1:846236839338:web:260ca9b6af72c69837cfd3"
 };
+// [FIX] กันจอขาว: ถ้าโหลด Firebase SDK ไม่ได้ (เน็ตหลุด/โดนบล็อก) ให้บอกสาเหตุชัดเจน
+if (typeof firebase === 'undefined' || !firebase.initializeApp) {
+  document.addEventListener('DOMContentLoaded', () => {
+    document.body.innerHTML = '<div style="position:fixed;inset:0;background:#2c3e50;color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;font-family:sans-serif;text-align:center;padding:24px;z-index:99999;">'
+      + '<div style="font-size:56px;">\uD83D\uDCE1</div>'
+      + '<div style="font-size:22px;font-weight:bold;">โหลดระบบ Firebase ไม่สำเร็จ</div>'
+      + '<div style="font-size:15px;opacity:.85;max-width:420px;line-height:1.7;">อินเทอร์เน็ตอาจหลุด หรือเราเตอร์บล็อกไฟล์จาก gstatic.com<br>กรุณาตรวจอินเทอร์เน็ตแล้วเปิดหน้านี้ใหม่</div>'
+      + '<button onclick="location.reload()" style="margin-top:8px;padding:14px 32px;font-size:17px;border:0;border-radius:10px;background:#3498db;color:#fff;font-weight:bold;">โหลดใหม่</button>'
+      + '</div>';
+  });
+  throw new Error('Firebase SDK not loaded');
+}
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 const BASE_PATH = "racing_order_app/";
@@ -372,6 +402,49 @@ const DEFAULT_CHEF_MENUS = {
 const DEFAULT_NONBATCHABLE = ['ปลาช่อนแป๊ะซะ','ปลาช่อนแวะถัวะ','อ่อมหมู','ผักหวานไข่มดแดง','ผักหวาน','ผักหวานเห็ดเผาะ','ผักหวานไข่มดแดงใส่เห็ดเผาะ','ไข่เจียวบาว','ไข่เจียวธรรมดา','ไข่เจียวหมูสับ','ไข่เจียวไข่มดแดง','ชุดโปร'];
 const CHEF_COLORS = { kik:'#007bff', jeab:'#e74c3c', nan:'#27ae60', see:'#8e44ad' };
 
+// ================= [FIX] ตัวช่วยกลาง =================
+// คอลัมน์พิเศษสำหรับออเดอร์ที่ไม่ตรงคีย์เวิร์ดแม่ครัวคนไหนเลย (เดิม "หายเงียบ")
+const UNASSIGNED = '__unassigned__';
+CHEF_COLORS[UNASSIGNED] = '#e67e22';
+
+// กัน HTML แตก/สคริปต์แปลกปลอม เวลาชื่อเมนูหรือคอมเมนต์มี < > & " '
+function esc(v) {
+  const m = { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' };
+  return String(v == null ? '' : v).replace(/[&<>"']/g, c => m[c]);
+}
+
+function chefNameOf(id) {
+  if (id === UNASSIGNED) return 'ยังไม่ระบุแม่ครัว';
+  return (chefConfig[id] && chefConfig[id].name) || id;
+}
+
+// ช่องทางที่ "ไม่ใช่โต๊ะในร้าน" — เดิมใช้ regex เช็กว่ามีอักษรไทยไหม ทำให้ แกร็บ/ไลน์แมน/ช็อปปี้/โต๊ะจอง
+// ติดป้าย "กลับบ้าน" ผิดหมด ครัวแพ็คใส่กล่องผิดแบบ
+const CHANNEL_TAGS = {
+  'กลับบ้าน': { label:'กลับบ้าน', bg:'#e67e22' },
+  'แกรป':     { label:'แกร็บ',    bg:'#00b14f' },
+  'แกร็บ':    { label:'แกร็บ',    bg:'#00b14f' },
+  'ไลน์แมน':  { label:'ไลน์แมน',  bg:'#06c755' },
+  'ช็อปปี้':   { label:'ช็อปปี้',   bg:'#ee4d2d' },
+  'โต๊ะจอง':  { label:'โต๊ะจอง',  bg:'#8e44ad' }
+};
+// คืน HTML ของชื่อโต๊ะ/ช่องทาง พร้อมป้ายกำกับที่ถูกต้อง
+function tableLabelHtml(raw, small) {
+  const t = String(raw == null ? '' : raw).trim();
+  const tag = CHANNEL_TAGS[t];
+  const cls = 'home-tag' + (small ? ' home-tag-sm' : '');
+  if (tag) {
+    return '<span class="' + cls + '" style="background:' + tag.bg + '">' + esc(tag.label) + '</span>';
+  }
+  return 'โต๊ะ ' + esc(t);
+}
+
+// Firebase ห้ามใช้ . # $ [ ] / ในชื่อ key — ถ้าเจอจะไม่แอบเปลี่ยนชื่อให้ (เพราะจะไม่ตรงกับระบบรับออเดอร์)
+// แต่จะเตือนให้แก้ชื่อเมนูแทน
+const BAD_KEY_RE = /[.#$\[\]\/]/;
+function hasBadKey(name) { return BAD_KEY_RE.test(String(name || '')); }
+// ================= [/FIX] =================
+
 // ---- Live state ----
 let chefConfig = {}; // { kik: { name: 'กิ๊ก', keywords: [...] }, ... }
 let nonBatchableItems = [];
@@ -381,6 +454,10 @@ let activeChefs = [];
 let currentOrders = [];
 let kpinBuffer = '';
 let kpinUnlockedAt = 0;
+let kpinFailCount = 0;                 // [FIX] กันเดา PIN
+let kpinLockUntil = 0;
+let kpinSetupMode = false;             // [FIX] โหมดตั้ง PIN ครั้งแรก
+let kpinFirstEntry = '';
 
 // ---- PIN helpers ----
 function simpleHash(s) { let h=5381; for(let i=0;i<s.length;i++) h=((h<<5)+h)^s.charCodeAt(i); return (h>>>0).toString(16); }
@@ -389,9 +466,20 @@ function isPinUnlocked() { return (Date.now()-kpinUnlockedAt) < 30*60*1000; }
 function openKitchenPin() {
   if (isPinUnlocked()) { openAdmin(); return; }
   kpinBuffer = '';
+  kpinSetupMode = false;
+  kpinFirstEntry = '';
   updateKpinDots();
-  document.getElementById('kpinError').textContent = '';
+  const errEl = document.getElementById('kpinError');
+  errEl.textContent = '';
   document.getElementById('kitchenPinOverlay').classList.add('show');
+  // [FIX] ถ้ายังไม่เคยตั้ง PIN ให้เข้าโหมด "ตั้งรหัสใหม่" แทนการปล่อยให้ใครก็เข้าได้
+  db.ref(BASE_PATH+'ownerPin').once('value', snap => {
+    if (!snap.val()) {
+      kpinSetupMode = true;
+      errEl.style.color = '#e67e22';
+      errEl.textContent = '🔐 ยังไม่เคยตั้ง PIN — กรุณาตั้งรหัส 4 หลักใหม่';
+    }
+  });
 }
 function closeKitchenPin() {
   document.getElementById('kitchenPinOverlay').classList.remove('show');
@@ -408,16 +496,73 @@ function kpinKey(k) {
   if (kpinBuffer.length===4) setTimeout(checkKPin, 120);
 }
 function checkKPin() {
+  const errEl = document.getElementById('kpinError');
+  // [FIX] ล็อกชั่วคราวเมื่อกดผิดซ้ำ ป้องกันไล่เดา PIN 4 หลัก
+  if (Date.now() < kpinLockUntil) {
+    const wait = Math.ceil((kpinLockUntil - Date.now())/1000);
+    errEl.style.color = '#e74c3c';
+    errEl.textContent = '🔒 ใส่ผิดหลายครั้ง รออีก ' + wait + ' วินาที';
+    kpinBuffer = ''; updateKpinDots();
+    return;
+  }
+
   const entered = simpleHash(kpinBuffer);
+
+  // [FIX] โหมดตั้ง PIN ครั้งแรก: ต้องกรอกซ้ำให้ตรงกัน แล้วจึงบันทึก
+  if (kpinSetupMode) {
+    if (!kpinFirstEntry) {
+      kpinFirstEntry = entered;
+      kpinBuffer = ''; updateKpinDots();
+      errEl.style.color = '#e67e22';
+      errEl.textContent = '🔁 กรอกรหัสเดิมอีกครั้งเพื่อยืนยัน';
+      return;
+    }
+    if (kpinFirstEntry !== entered) {
+      kpinFirstEntry = '';
+      kpinBuffer = ''; updateKpinDots();
+      errEl.style.color = '#e74c3c';
+      errEl.textContent = '❌ รหัสสองครั้งไม่ตรงกัน เริ่มใหม่';
+      return;
+    }
+    db.ref(BASE_PATH+'ownerPin').set(entered).then(() => {
+      kpinSetupMode = false; kpinFirstEntry = '';
+      kpinUnlockedAt = Date.now();
+      closeKitchenPin();
+      openAdmin();
+    }).catch(e => {
+      errEl.style.color = '#e74c3c';
+      errEl.textContent = '❌ บันทึก PIN ไม่สำเร็จ: ' + e.message;
+      kpinBuffer = ''; updateKpinDots();
+    });
+    return;
+  }
+
   db.ref(BASE_PATH+'ownerPin').once('value', snap => {
     const stored = snap.val();
-    if (!stored || entered===stored) {
+    if (!stored) {
+      // ไม่มี PIN ในระบบ -> ไม่ปล่อยผ่าน แต่ให้ตั้งใหม่
+      kpinSetupMode = true; kpinFirstEntry = '';
+      kpinBuffer = ''; updateKpinDots();
+      errEl.style.color = '#e67e22';
+      errEl.textContent = '🔐 ยังไม่เคยตั้ง PIN — กรุณาตั้งรหัส 4 หลักใหม่';
+      return;
+    }
+    if (entered === stored) {
+      kpinFailCount = 0;
       kpinUnlockedAt = Date.now();
       closeKitchenPin();
       openAdmin();
     } else {
-      document.getElementById('kpinError').textContent = '❌ PIN ไม่ถูกต้อง';
+      kpinFailCount++;
       kpinBuffer = ''; updateKpinDots();
+      errEl.style.color = '#e74c3c';
+      if (kpinFailCount >= 5) {
+        kpinLockUntil = Date.now() + 60000;
+        kpinFailCount = 0;
+        errEl.textContent = '🔒 ใส่ผิด 5 ครั้ง ล็อก 60 วินาที';
+      } else {
+        errEl.textContent = '❌ PIN ไม่ถูกต้อง (' + kpinFailCount + '/5)';
+      }
     }
   });
 }
@@ -429,8 +574,20 @@ function openAdmin() {
 }
 function closeAdmin() {
   document.getElementById('adminOverlay').classList.remove('show');
+  admCurrentTab = 0;
 }
+// [FIX] วาดแท็บที่เปิดอยู่ใหม่ เมื่อเมนู/คีย์เวิร์ดถูกแก้จากอีกเครื่อง
+function admRefreshOpenTab() {
+  const ov = document.getElementById('adminOverlay');
+  if (!ov || !ov.classList.contains('show') || !admCurrentTab) return;
+  if (admCurrentTab===1) renderAddMenuTab();
+  if (admCurrentTab===2) renderChefCards();
+  if (admCurrentTab===3) renderPriceTab();
+  if (admCurrentTab===4) renderNonBatchTab();
+}
+let admCurrentTab = 0;   // [FIX] จำแท็บที่เปิดอยู่ เพื่อรีเฟรชเมื่อข้อมูลเปลี่ยนจากเครื่องอื่น
 function admSetTab(n) {
+  admCurrentTab = n;
   [1,2,3,4].forEach(i => {
     const tab = document.getElementById('admTab'+i);
     const panel = document.getElementById('admPanel'+i);
@@ -477,58 +634,74 @@ function addNewMenuItem() {
 
   if (!name) { result.textContent='❌ ใส่ชื่อเมนูด้วยครับ'; result.style.color='#e74c3c'; return; }
   if (!cat)  { result.textContent='❌ เลือกหมวดหมู่ด้วยครับ'; result.style.color='#e74c3c'; return; }
+  // [FIX] กันชื่อเมนูที่มีอักขระต้องห้ามของ Firebase (เดิมบันทึกแล้ว error เงียบๆ)
+  if (hasBadKey(name)) {
+    result.textContent = '❌ ชื่อเมนูห้ามมีอักขระ  .  #  $  [  ]  /  — กรุณาเปลี่ยนชื่อ';
+    result.style.color = '#e74c3c';
+    return;
+  }
+  if (!menuCategories[cat]) {
+    result.textContent = '❌ ไม่พบหมวด "' + cat + '" ในระบบ';
+    result.style.color = '#e74c3c';
+    return;
+  }
+  if (menuCategories[cat].includes(name)) {
+    result.textContent = '❌ มีเมนูนี้ในหมวดนี้อยู่แล้ว';
+    result.style.color = '#e74c3c';
+    return;
+  }
 
-  // which chefs selected
   const selectedChefs = Object.keys(chefConfig).filter(id => document.getElementById('ckchef_'+id)?.classList.contains('selected'));
+  const btnDisabledEls = document.querySelectorAll('#admPanel1 button');
+  btnDisabledEls.forEach(b => b.disabled = true);
+  result.style.color = '#888';
+  result.textContent = '⏳ กำลังบันทึก...';
 
-  const updates = {};
+  // [FIX] อ่านค่าล่าสุดจาก Firebase ก่อนเสมอ แล้วเขียนเฉพาะ "ช่องใหม่" ที่เพิ่ม
+  // แทนการเขียนทับทั้งก้อน — กันเมนูที่คนอื่นเพิ่มพร้อมกันหาย
+  const reads = [ db.ref(BASE_PATH+'menuConfig/cats/'+cat+'/items').once('value') ];
+  selectedChefs.forEach(cid => reads.push(db.ref(BASE_PATH+'chefConfig/'+cid+'/keywords').once('value')));
+  reads.push(db.ref(BASE_PATH+'chefConfig/__nonBatchable__').once('value'));
 
-  // 1. เพิ่มเข้า menuConfig (หมวดหมู่)
-  if (menuCategories[cat]) {
-    if (!menuCategories[cat].includes(name)) {
-      menuCategories[cat].push(name);
-      const itemsObj = {};
-      menuCategories[cat].forEach((item,j) => itemsObj[j]=item);
-      updates[BASE_PATH+'menuConfig/cats/'+cat+'/items'] = itemsObj;
+  Promise.all(reads).then(snaps => {
+    const updates = {};
+    const itemsNow = Object.values(snaps[0].val() || {});
+    if (itemsNow.includes(name)) throw new Error('มีเมนูนี้อยู่แล้ว (มีคนเพิ่มพร้อมกัน)');
+    // เขียนเฉพาะ index ใหม่ ไม่ทับรายการเดิม
+    updates[BASE_PATH+'menuConfig/cats/'+cat+'/items/'+itemsNow.length] = name;
+
+    if (price > 0) updates[BASE_PATH+'menuPrices/'+name] = price;
+
+    selectedChefs.forEach((cid, i) => {
+      const kwsNow = Object.values(snaps[1+i].val() || {});
+      if (!kwsNow.includes(name)) {
+        updates[BASE_PATH+'chefConfig/'+cid+'/keywords/'+kwsNow.length] = name;
+      }
+    });
+
+    if (nonB) {
+      const nbNow = Object.values(snaps[snaps.length-1].val() || {});
+      if (!nbNow.includes(name)) {
+        updates[BASE_PATH+'chefConfig/__nonBatchable__/'+nbNow.length] = name;
+      }
     }
-  }
 
-  // 2. บันทึกราคา
-  if (price > 0) {
-    menuPrices[name] = price;
-    updates[BASE_PATH+'menuPrices/'+name] = price;
-  }
-
-  // 3. เพิ่มคีย์เวิร์ดให้แม่ครัวที่เลือก
-  selectedChefs.forEach(chefId => {
-    const kws = chefConfig[chefId]?.keywords || [];
-    if (!kws.includes(name)) {
-      kws.push(name);
-      const kwObj = {};
-      kws.forEach((k,i) => kwObj[i]=k);
-      updates[BASE_PATH+'chefConfig/'+chefId+'/keywords'] = kwObj;
-      chefConfig[chefId].keywords = kws;
-    }
-  });
-
-  // 4. nonBatchable
-  if (nonB && !nonBatchableItems.includes(name)) {
-    nonBatchableItems.push(name);
-    const nbObj = {};
-    nonBatchableItems.forEach((k,i) => nbObj[i]=k);
-    updates[BASE_PATH+'chefConfig/__nonBatchable__'] = nbObj;
-  }
-
-  db.ref().update(updates).then(() => {
-    result.textContent = `✅ เพิ่ม "${name}" สำเร็จ!`;
+    return db.ref().update(updates);
+  }).then(() => {
+    // [FIX] อัปเดต state ในเครื่อง "หลัง" เขียนสำเร็จเท่านั้น (listener จะซิงค์ค่าจริงมาอีกที)
+    result.textContent = '✅ เพิ่ม "' + name + '" สำเร็จ!';
     result.style.color = '#27ae60';
     document.getElementById('newMenuName').value = '';
     document.getElementById('newMenuPrice').value = '';
     document.getElementById('isNonBatchable').checked = false;
     document.querySelectorAll('.chef-checkbox-item').forEach(el => el.classList.remove('selected'));
     admShowStatus('บันทึกแล้ว ✅');
-    rebuildKitchenUI();
-  }).catch(e => { result.textContent='❌ '+e.message; result.style.color='#e74c3c'; });
+  }).catch(e => {
+    result.textContent = '❌ ' + e.message;
+    result.style.color = '#e74c3c';
+  }).then(() => {
+    btnDisabledEls.forEach(b => b.disabled = false);
+  });
 }
 
 // ---- Tab 2: มอบหมายแม่ครัว ----
@@ -543,13 +716,13 @@ function renderChefCards() {
     const kws = cfg.keywords || [];
     const tagsHtml = kws.map((kw,i) => `
       <span class="chef-keyword-tag">
-        ${kw}
-        <button onclick="removeChefKeyword('${chefId}',${i})" title="ลบ">✕</button>
+        ${esc(kw)}
+        <button data-chef="${esc(chefId)}" data-kw="${esc(kw)}" onclick="removeChefKeywordByName(this.dataset.chef, this.dataset.kw)" title="ลบ">✕</button>
       </span>`).join('');
 
     card.innerHTML = `
       <div class="chef-card-header" style="background:${color};">
-        <span>${cfg.name||chefId}</span>
+        <span>${esc(cfg.name||chefId)}</span>
         <span style="font-size:14px; opacity:0.8;">${kws.length} คีย์เวิร์ด</span>
       </div>
       <div class="chef-keyword-list">${tagsHtml || '<span style="color:#aaa;font-size:14px;">ยังไม่มีคีย์เวิร์ด</span>'}</div>
@@ -566,75 +739,112 @@ function addChefKeyword(chefId) {
   const input = document.getElementById('kwInput_'+chefId);
   const kw = input.value.trim();
   if (!kw) return;
-  const kws = chefConfig[chefId]?.keywords || [];
-  if (kws.includes(kw)) { input.value=''; return; }
-  kws.push(kw);
-  chefConfig[chefId].keywords = kws;
-  const kwObj = {};
-  kws.forEach((k,i) => kwObj[i]=k);
-  db.ref(BASE_PATH+'chefConfig/'+chefId+'/keywords').set(kwObj).then(() => {
-    admShowStatus('บันทึกแล้ว ✅');
-    renderChefCards();
-    renderOrders();
-  });
   input.value = '';
+  // [FIX] อ่านค่าล่าสุดก่อน แล้วเขียนเฉพาะ index ใหม่ กันทับคีย์เวิร์ดของคนอื่น
+  db.ref(BASE_PATH+'chefConfig/'+chefId+'/keywords').once('value').then(snap => {
+    const kwsNow = Object.values(snap.val() || {});
+    if (kwsNow.includes(kw)) return null;
+    return db.ref(BASE_PATH+'chefConfig/'+chefId+'/keywords/'+kwsNow.length).set(kw);
+  }).then(() => {
+    admShowStatus('บันทึกแล้ว ✅');
+  }).catch(e => admShowStatus('❌ ' + e.message, false));
 }
 
-function removeChefKeyword(chefId, idx) {
-  const kws = chefConfig[chefId]?.keywords || [];
-  kws.splice(idx, 1);
-  chefConfig[chefId].keywords = kws;
-  const kwObj = {};
-  kws.forEach((k,i) => kwObj[i]=k);
-  db.ref(BASE_PATH+'chefConfig/'+chefId+'/keywords').set(kwObj).then(() => {
+// [FIX] ลบด้วย "ชื่อคีย์เวิร์ด" แทน "ลำดับที่" — กันลบผิดตัวเมื่อมีคนแก้จากอีกเครื่องพร้อมกัน
+function removeChefKeywordByName(chefId, kw) {
+  db.ref(BASE_PATH+'chefConfig/'+chefId+'/keywords').once('value').then(snap => {
+    const kwsNow = Object.values(snap.val() || {});
+    if (!kwsNow.includes(kw)) { admShowStatus('คีย์เวิร์ดนี้ถูกลบไปแล้ว', false); return null; }
+    const left = kwsNow.filter(x => x !== kw);
+    const kwObj = {};
+    left.forEach((k,i) => kwObj[i]=k);
+    return db.ref(BASE_PATH+'chefConfig/'+chefId+'/keywords').set(kwObj);
+  }).then(() => {
     admShowStatus('บันทึกแล้ว ✅');
-    renderChefCards();
-    renderOrders();
-  });
+  }).catch(e => admShowStatus('❌ ' + e.message, false));
+}
+// คงชื่อเดิมไว้เผื่อมีอะไรเรียกอยู่
+function removeChefKeyword(chefId, idx) {
+  const kws = (chefConfig[chefId] && chefConfig[chefId].keywords) || [];
+  if (idx < 0 || idx >= kws.length) return;
+  removeChefKeywordByName(chefId, kws[idx]);
 }
 
 // ---- Tab 3: ราคา ----
+// [FIX] เก็บราคาที่พิมพค้างไว้ในหน่วยความจำ ไม่หายเวลาค้นหา/วาดใหม่
+let priceEdits = {};
+function priceEditChanged(el) {
+  priceEdits[el.dataset.item] = el.value;
+  const badge = document.getElementById('priceDirtyBadge');
+  if (badge) {
+    const n = Object.keys(priceEdits).length;
+    badge.textContent = n ? ('✏️ แก้ค้างไว้ ' + n + ' เมนู — อย่าลืมกดบันทึก') : '';
+  }
+}
+
 function renderPriceTab() {
   const q = (document.getElementById('priceSearch')?.value||'').trim();
   const allMenus = [...new Set(Object.values(menuCategories).flat())];
   const filtered = q ? allMenus.filter(m=>m.includes(q)) : allMenus;
   const container = document.getElementById('priceTabList');
 
-  // build chefLookup: item -> chefName
+  // build chefLookup: item -> chefName (คีย์เวิร์ดยาวสุดชนะก่อน ให้ตรงกับการแยกจริงบนจอครัว)
   const chefLookup = {};
-  Object.entries(chefConfig).forEach(([id, cfg]) => {
-    if (id==='__nonBatchable__') return;
-    (cfg.keywords||[]).forEach(kw => {
-      allMenus.forEach(m => {
-        if (m.includes(kw) && !chefLookup[m]) chefLookup[m] = cfg.name||id;
-      });
-    });
+  allMenus.forEach(m => {
+    const id = getChefForMenu(m);
+    if (id) chefLookup[m] = chefNameOf(id);
   });
 
-  if (filtered.length===0) { container.innerHTML='<p style="color:#aaa;text-align:center;padding:20px;">ไม่พบเมนู</p>'; return; }
-  container.innerHTML = filtered.map(item => {
-    const badge = chefLookup[item] ? `<span class="price-chef-badge">${chefLookup[item]}</span>` : '';
+  const dirtyNote = '<div id="priceDirtyBadge" style="font-size:12px;color:#e67e22;padding:6px 14px;"></div>';
+
+  if (filtered.length===0) { container.innerHTML = dirtyNote + '<p style="color:#aaa;text-align:center;padding:20px;">ไม่พบเมนู</p>'; priceEditChanged({dataset:{}}); return; }
+  container.innerHTML = dirtyNote + filtered.map(item => {
+    const badge = chefLookup[item] ? `<span class="price-chef-badge">${esc(chefLookup[item])}</span>` : '';
+    const warn = hasBadKey(item) ? `<span style="color:#e74c3c;font-size:12px;"> ⚠️ ชื่อมีอักขระต้องห้าม</span>` : '';
+    const cur = (priceEdits[item] !== undefined) ? priceEdits[item] : (menuPrices[item] || '');
     return `<div class="price-row-adm">
-      <span>${item}${badge}</span>
+      <span>${esc(item)}${badge}${warn}</span>
       <div style="display:flex;align-items:center;gap:5px;">
-        <input class="price-input-adm" id="admprice_${CSS.escape(item)}" type="number" min="0" step="1" placeholder="0" value="${menuPrices[item]||''}">
+        <input class="price-input-adm" data-item="${esc(item)}" oninput="priceEditChanged(this)" type="number" min="0" step="1" placeholder="0" value="${esc(cur)}">
         <span style="color:#888;font-size:13px;">฿</span>
       </div>
     </div>`;
   }).join('');
+  // แสดงจำนวนที่ค้างไว้อีกครั้งหลังวาดใหม่
+  const badge2 = document.getElementById('priceDirtyBadge');
+  const n = Object.keys(priceEdits).length;
+  if (badge2 && n) badge2.textContent = '✏️ แก้ค้างไว้ ' + n + ' เมนู — อย่าลืมกดบันทึก';
 }
 
 function savePriceTab() {
-  const allMenus = [...new Set(Object.values(menuCategories).flat())];
   const updates = {};
-  allMenus.forEach(item => {
-    const el = document.getElementById('admprice_'+CSS.escape(item));
-    if (el) {
-      const v = parseFloat(el.value);
-      if (!isNaN(v) && v>0) { menuPrices[item]=v; updates[BASE_PATH+'menuPrices/'+item]=v; }
+  const bad = [];
+  let count = 0;
+  Object.keys(priceEdits).forEach(item => {
+    if (hasBadKey(item)) { bad.push(item); return; }
+    const raw = String(priceEdits[item]).trim();
+    if (raw === '') return;                       // เว้นว่าง = ไม่แตะ
+    const v = parseFloat(raw);
+    if (isNaN(v) || v < 0) return;
+    if (v === 0) {                                // [FIX] ใส่ 0 = ลบราคาออก (เดิมทำไม่ได้)
+      updates[BASE_PATH+'menuPrices/'+item] = null;
+      delete menuPrices[item];
+    } else {
+      updates[BASE_PATH+'menuPrices/'+item] = v;
+      menuPrices[item] = v;
     }
+    count++;
   });
-  db.ref().update(updates).then(() => admShowStatus('บันทึกราคาแล้ว ✅'));
+
+  if (!count && !bad.length) { admShowStatus('ยังไม่มีการแก้ไข', false); return; }
+
+  db.ref().update(updates).then(() => {
+    priceEdits = {};
+    let msg = 'บันทึกราคา ' + count + ' เมนูแล้ว ✅';
+    if (bad.length) msg += ' (ข้าม ' + bad.length + ' เมนูที่ชื่อมีอักขระต้องห้าม)';
+    admShowStatus(msg, !bad.length);
+    renderPriceTab();
+  }).catch(e => admShowStatus('❌ ' + e.message, false));
 }
 
 // ---- Firebase listeners ----
@@ -667,6 +877,7 @@ function loadChefConfig() {
     }
     rebuildKitchenUI();
     renderOrders();
+    admRefreshOpenTab();   // [FIX] หน้าแอดมินที่เปิดค้างไว้จะได้ข้อมูลใหม่ด้วย
   });
 }
 
@@ -679,51 +890,78 @@ function loadMenuCategories() {
       catOrder.forEach(cat => {
         if (raw.cats?.[cat]) menuCategories[cat] = Object.values(raw.cats[cat].items||{});
       });
+      admRefreshOpenTab();   // [FIX] เมนูเปลี่ยนจากระบบรับออเดอร์ -> วาดใหม่
     }
   });
 }
 
 // ---- Build dynamic chef columns & selector buttons ----
+// [FIX] จำว่าปิดคอลัมน์แม่ครัวคนไหนไว้ เก็บในเครื่อง ไม่เด้งกลับมาเองเมื่อมีคนแก้คีย์เวิร์ด
+const HIDDEN_CHEF_LS = 'kds_hidden_chefs_v1';
+function getHiddenChefs() {
+  try { return new Set(JSON.parse(localStorage.getItem(HIDDEN_CHEF_LS) || '[]')); }
+  catch(e) { return new Set(); }
+}
+function saveHiddenChefs(set) {
+  try { localStorage.setItem(HIDDEN_CHEF_LS, JSON.stringify([...set])); } catch(e) {}
+}
+
 function rebuildKitchenUI() {
   const grid = document.getElementById('kitchenGrid');
   const selector = document.getElementById('chefSelectorBtns');
   grid.innerHTML = '';
   selector.innerHTML = '';
+  const hidden = getHiddenChefs();
   activeChefs = Object.keys(chefConfig).filter(id => id!=='__nonBatchable__');
 
   activeChefs.forEach(id => {
     const cfg = chefConfig[id];
     const color = CHEF_COLORS[id] || '#555';
+    const isHidden = hidden.has(id);
 
     // column
     const col = document.createElement('div');
-    col.className = 'chef-column';
+    col.className = 'chef-column' + (isHidden ? ' hidden' : '');
     col.id = 'col-'+id;
-    col.innerHTML = `<h3 style="border-color:${color}; color:${color};">${cfg.name}</h3><div id="list-${id}"></div>`;
+    col.innerHTML = chefHeaderHtml(id, cfg.name, color) + `<div id="list-${esc(id)}"></div>`;
     grid.appendChild(col);
+    initColumnBehaviors(id);
 
     // selector button
     const btn = document.createElement('button');
-    btn.className = 'selector-btn active';
+    btn.className = 'selector-btn' + (isHidden ? '' : ' active');
     btn.id = 'selbtn-'+id;
     btn.textContent = cfg.name;
     btn.style.borderColor = color;
     btn.onclick = () => {
+      const h = getHiddenChefs();
       if (btn.classList.contains('active')) {
         btn.classList.remove('active');
         btn.style.background='#f8f9fa'; btn.style.color='#555';
         col.classList.add('hidden');
+        h.add(id);
       } else {
         btn.classList.add('active');
         btn.style.background=color; btn.style.color='white';
         col.classList.remove('hidden');
+        h.delete(id);
       }
+      saveHiddenChefs(h);
       updateGridColumns();
     };
-    btn.style.background = color;
-    btn.style.color = 'white';
+    btn.style.background = isHidden ? '#f8f9fa' : color;
+    btn.style.color = isHidden ? '#555' : 'white';
     selector.appendChild(btn);
   });
+
+  // [FIX] คอลัมน์สำรอง "ยังไม่ระบุแม่ครัว" — กันออเดอร์หายเงียบเมื่อชื่อเมนูไม่ตรงคีย์เวิร์ดใครเลย
+  const ucol = document.createElement('div');
+  ucol.className = 'chef-column hidden';
+  ucol.id = 'col-' + UNASSIGNED;
+  ucol.innerHTML = chefHeaderHtml(UNASSIGNED, '❓ ยังไม่ระบุแม่ครัว', CHEF_COLORS[UNASSIGNED]) + `<div id="list-${UNASSIGNED}"></div>`;
+  grid.appendChild(ucol);
+  initColumnBehaviors(UNASSIGNED);
+  activeChefs.push(UNASSIGNED);
 
   updateGridColumns();
 }
@@ -769,18 +1007,157 @@ function toggleGroupReady(orderIdsStr, isAllReady) {
   db.ref().update(updates);
 }
 
+// [FIX] เดิมคืนแม่ครัว"คนแรกที่เจอ" ทำให้คีย์เวิร์ดสั้นๆ เช่น 'ข้าว' แย่งจานของคนที่คีย์เวิร์ดเจาะจงกว่า
+// ตอนนี้เทียบทุกคีย์เวิร์ด แล้วเลือกอันที่ "ยาวที่สุด" = เฉพาะเจาะที่สุด
+let _chefMatchCache = {};
+let _chefMatchSig = '';
 function getChefForMenu(itemName) {
+  if (!itemName) return null;
+  const sig = JSON.stringify(Object.entries(chefConfig).map(([id,c]) => [id, (c.keywords||[]).length]));
+  if (sig !== _chefMatchSig) { _chefMatchSig = sig; _chefMatchCache = {}; }
+  if (_chefMatchCache[itemName] !== undefined) return _chefMatchCache[itemName];
+
+  let best = null, bestLen = 0;
   for (let [id, cfg] of Object.entries(chefConfig)) {
     if (id==='__nonBatchable__') continue;
-    if ((cfg.keywords||[]).some(kw => itemName.includes(kw))) return id;
+    (cfg.keywords||[]).forEach(kw => {
+      if (kw && itemName.includes(kw) && kw.length > bestLen) { best = id; bestLen = kw.length; }
+    });
   }
-  return null;
+  _chefMatchCache[itemName] = best;
+  return best;
 }
 
+// ================= [NEW] แตะ 2 ครั้งยืนยัน + ซ่อนรายการที่เสร็จแล้ว =================
+const HIDDEN_ORDER_LS = 'kds_hidden_orders_v1';
+function getHiddenOrders() {
+  try { return new Set(JSON.parse(localStorage.getItem(HIDDEN_ORDER_LS) || '[]')); }
+  catch(e) { return new Set(); }
+}
+function saveHiddenOrders(set) {
+  try { localStorage.setItem(HIDDEN_ORDER_LS, JSON.stringify([...set])); } catch(e) {}
+}
+
+let _lastScrollTs = 0;
+let _tapKey = null, _tapTimer = null, _tapEl = null;
+const TAP_WINDOW_MS = 2500;    // แตะครั้งที่สองภายใน 2.5 วินาที
+const SCROLL_GUARD_MS = 450;   // หลังเลื่อนจอ/ปัด ไม่รับการแตะทันที
+
+function clearTapArm() {
+  if (_tapEl) _tapEl.classList.remove('tap-armed');
+  _tapEl = null; _tapKey = null;
+  clearTimeout(_tapTimer);
+}
+
+// คืน true เฉพาะตอนเป็นการแตะครั้งที่ 2 ของปุ่มเดิม
+function tapGuard(el, key) {
+  const wrap = el && el.closest ? el.closest('.card-wrap.swiped') : null;
+  if (wrap) { wrap.classList.remove('swiped'); clearTapArm(); return false; }
+  if (Date.now() - _lastScrollTs < SCROLL_GUARD_MS) { clearTapArm(); return false; }
+  if (_tapKey === key) { clearTapArm(); return true; }
+  clearTapArm();
+  _tapKey = key; _tapEl = el;
+  if (el) el.classList.add('tap-armed');
+  _tapTimer = setTimeout(clearTapArm, TAP_WINDOW_MS);
+  return false;
+}
+
+function jsAttr(v) { return esc(JSON.stringify(v)); }
+
+// ปัดซ้าย = เปิดปุ่มที่ซ่อนอยู่ด้านหลัง / ปัดขวา = ปิด
+function attachSwipe(el) {
+  let x0 = 0, y0 = 0, tracking = false;
+  const down = e => {
+    const p = e.touches ? e.touches[0] : e;
+    x0 = p.clientX; y0 = p.clientY; tracking = true;
+  };
+  const move = e => {
+    if (!tracking) return;
+    const p = e.touches ? e.touches[0] : e;
+    const dx = p.clientX - x0, dy = p.clientY - y0;
+    if (Math.abs(dx) > 12 && Math.abs(dx) > Math.abs(dy)) { _lastScrollTs = Date.now(); clearTapArm(); }
+  };
+  const up = e => {
+    if (!tracking) return;
+    tracking = false;
+    const p = (e.changedTouches && e.changedTouches[0]) || e;
+    const dx = p.clientX - x0, dy = p.clientY - y0;
+    if (Math.abs(dy) > 60) return;
+    if (dx < -45) { el.classList.add('swiped'); _lastScrollTs = Date.now(); }
+    else if (dx > 45) { el.classList.remove('swiped'); _lastScrollTs = Date.now(); }
+  };
+  el.addEventListener('touchstart', down, { passive:true });
+  el.addEventListener('touchmove', move, { passive:true });
+  el.addEventListener('touchend', up, { passive:true });
+  el.addEventListener('mousedown', down);
+  el.addEventListener('mousemove', move);
+  el.addEventListener('mouseup', up);
+}
+
+// ห่อการ์ดด้วยกล่องที่ปัดได้ (เฉพาะการ์ดที่เสร็จแล้วทั้งใบ)
+function wrapSwipeCard(card, orderIds, isAllReady) {
+  const wrap = document.createElement('div');
+  wrap.className = 'card-wrap';
+  wrap.appendChild(card);
+  if (isAllReady) {
+    const btn = document.createElement('button');
+    btn.className = 'swipe-btn swipe-hide';
+    btn.innerHTML = '🙈<br>ซ่อน';
+    btn.onclick = (e) => {
+      e.stopPropagation();
+      const h = getHiddenOrders();
+      (orderIds || []).forEach(id => h.add(id));
+      saveHiddenOrders(h);
+      renderOrders();
+    };
+    wrap.appendChild(btn);
+    attachSwipe(wrap);
+  }
+  return wrap;
+}
+
+function chefHeaderHtml(id, name, color) {
+  return `<div class="hdr-wrap" id="hdr-${esc(id)}">`
+    + `<h3 style="border-color:${color}; color:${color};">${esc(name)}`
+    + `<span class="hid-badge" id="hb-${esc(id)}" style="display:none;"></span></h3>`
+    + `<button class="swipe-btn swipe-show" onclick="unhideChef(${jsAttr(id)})">↩️<br>แสดง</button>`
+    + `</div>`;
+}
+
+function initColumnBehaviors(id) {
+  const hdr = document.getElementById('hdr-' + id);
+  if (hdr) attachSwipe(hdr);
+  const list = document.getElementById('list-' + id);
+  if (list) list.addEventListener('scroll', () => { _lastScrollTs = Date.now(); clearTapArm(); }, { passive:true });
+}
+
+function unhideChef(chefId) {
+  const h = getHiddenOrders();
+  currentOrders.forEach(o => {
+    const cid = getChefForMenu(o.item) || UNASSIGNED;
+    if (cid === chefId && h.has(o.id)) h.delete(o.id);
+  });
+  saveHiddenOrders(h);
+  const hdr = document.getElementById('hdr-' + chefId);
+  if (hdr) hdr.classList.remove('swiped');
+  renderOrders();
+}
+
+function updateHiddenBadge(id, n) {
+  const b = document.getElementById('hb-' + id);
+  if (!b) return;
+  if (n > 0) { b.style.display = 'inline-flex'; b.textContent = '🙈 ' + n; }
+  else { b.style.display = 'none'; b.textContent = ''; }
+}
+// ================= [NEW] จบส่วนที่เพิ่ม =================
+
 function renderOrders() {
+  // [FIX] จำตำแหน่งที่เลื่อนอยู่ของแต่ละคอลัมน์ แล้วคืนหลังวาดใหม่
+  // กันอาการจอดีดกลับขึ้นบนสุดทุกครั้งที่มีออเดอร์ใหม่เข้าตอนแม่ครัวกำลังเลื่อนหา
+  const scrollMemo = {};
   activeChefs.forEach(id => {
     const el = document.getElementById('list-'+id);
-    if (el) el.innerHTML = '';
+    if (el) { scrollMemo[id] = el.scrollTop; el.innerHTML = ''; }
   });
 
   // batchable items -> grouped across ALL tables into one card (as before)
@@ -789,7 +1166,20 @@ function renderOrders() {
   // with each ordered plate/unit shown as its own individually-tickable row
   const nonbBlocks = [];
 
+  // [NEW] รายการที่พนักงานกดซ่อนไว้ (เก็บในเครื่องนี้เครื่องเดียว ไม่กระทบจออื่น/เครื่องเก็บเงิน)
+  const hiddenOrders = getHiddenOrders();
+  const hiddenCountByChef = {};
+  const liveIds = new Set(currentOrders.map(o => o.id));
+  let _hidChanged = false;
+  [...hiddenOrders].forEach(id => { if (!liveIds.has(id)) { hiddenOrders.delete(id); _hidChanged = true; } });
+  if (_hidChanged) saveHiddenOrders(hiddenOrders);
+
   currentOrders.forEach(o => {
+    if (hiddenOrders.has(o.id)) {
+      const _cid = getChefForMenu(o.item) || UNASSIGNED;
+      hiddenCountByChef[_cid] = (hiddenCountByChef[_cid] || 0) + 1;
+      return;
+    }
     const isNonB = nonBatchableItems.includes(o.item);
 
     if (!isNonB) {
@@ -820,13 +1210,13 @@ function renderOrders() {
 
   const allCards = [...batchGroups, ...nonbBlocks].sort((a,b) => new Date(a.minTs)-new Date(b.minTs));
 
-  // ---- หาออเดอร์ที่ "รอนานที่สุด" (ยังไม่เสร็จ) 3 อันดับแรก ในทุกคอลัมน์ ไว้แจ้งเตือนบนแถบด้านบน ----
+  // ---- หาออเดอร์ที่ "รอนานที่สุด" (ยังไม่เสร็จ) 5 อันดับแรก ในทุกคอลัมน์ ไว้แจ้งเตือนบนแถบด้านบน ----
   // ทำตรงนี้เพื่อให้ไม่ตกหล่น ต่อให้คอลัมน์ของแม่ครัวคนนั้นจะยังไม่ถูกเลื่อนไปดูก็ตาม
   const pendingList = [];
 
   allCards.forEach(group => {
-    const chefId = getChefForMenu(group.item);
-    if (!chefId) return;
+    // [FIX] เมนูที่ไม่ตรงคีย์เวิร์ดของใครเลย ต้องไปลงคอลัมน์กลาง ห้ามทิ้งหายเด็ดขาด
+    const chefId = getChefForMenu(group.item) || UNASSIGNED;
     const listEl = document.getElementById('list-'+chefId);
     if (!listEl) return;
     const color = CHEF_COLORS[chefId] || '#007bff';
@@ -837,17 +1227,16 @@ function renderOrders() {
 
       if (!isAllReady) {
         pendingList.push({
-          chefId, chefName: (chefConfig[chefId] && chefConfig[chefId].name) || chefId,
+          chefId, chefName: chefNameOf(chefId),
           item: group.item, comment: group.comment, table: group.subOrders[0] && group.subOrders[0].table, ts: group.minTs
         });
       }
 
       let tablesHtml = group.subOrders.map(order => {
         const isReady = order.status==='ready';
-        const isHome = /[ก-๙]/.test(order.table);
-        return `<div class="table-item ${isReady?'ready':''}" onclick="event.stopPropagation(); toggleItemReady('${order.id}','${order.status}')">
-          <span>โต๊ะ ${order.table}${isHome?` <span class="home-tag">กลับบ้าน</span>`:''}</span>
-          <span class="qty-circle" style="${isReady?'':'background:'+color}">${order.quantity}</span>
+        return `<div class="table-item ${isReady?'ready':''}" onclick='event.stopPropagation(); if (tapGuard(this,${jsAttr("i:"+order.id)})) toggleItemReady(${jsAttr(order.id)},${jsAttr(order.status)})'>
+          <span>${tableLabelHtml(order.table)}</span>
+          <span class="qty-circle" style="${isReady?'':'background:'+color}">${esc(order.quantity)}</span>
         </div>`;
       }).join('');
 
@@ -856,13 +1245,13 @@ function renderOrders() {
       card.style.borderColor = color;
       card.innerHTML = `
         <div class="card-header ${isAllReady?'ready':''}" style="${isAllReady?'':'background:'+color}"
-          onclick='toggleGroupReady(${JSON.stringify(groupIds)}, ${isAllReady})'>
-          <span>${group.item}</span>
-          <span class="qty-circle" style="background:white; color:${color};">${group.totalQty}</span>
+          onclick='if (tapGuard(this,${jsAttr("g:"+group.item+"|"+(group.comment||""))})) toggleGroupReady(${JSON.stringify(groupIds)}, ${isAllReady})'>
+          <span>${esc(group.item)}</span>
+          <span class="qty-circle" style="background:white; color:${color};">${esc(group.totalQty)}</span>
         </div>
-        ${group.comment?`<div class="card-comment">⚠️ ${group.comment}</div>`:''}
+        ${group.comment?`<div class="card-comment">⚠️ ${esc(group.comment)}</div>`:''}
         <div class="table-list">${tablesHtml}</div>`;
-      listEl.appendChild(card);
+      listEl.appendChild(wrapSwipeCard(card, group.subOrders.map(so => so.id), isAllReady));
 
     } else {
       // non-batchable block: one card per table+item, each plate is its own row
@@ -873,11 +1262,10 @@ function renderOrders() {
       const totalQty = units.length;
       const remainingQty = units.filter(u => !u.done).length;
       const isAllReady = units.every(u => u.done);
-      const isHome = /[ก-๙]/.test(group.table);
 
       if (!isAllReady) {
         pendingList.push({
-          chefId, chefName: (chefConfig[chefId] && chefConfig[chefId].name) || chefId,
+          chefId, chefName: chefNameOf(chefId),
           item: group.item, comment: group.comment, table: group.table, ts: group.minTs
         });
       }
@@ -885,8 +1273,8 @@ function renderOrders() {
       const unitsPayload = JSON.stringify(units.map(u => ({ orderId:u.orderId, unitIndex:u.unitIndex, quantity:u.quantity })));
 
       let unitsHtml = units.map((u, idx) => {
-        return `<div class="table-item ${u.done?'ready':''}" onclick="event.stopPropagation(); toggleNonBUnit('${u.orderId}', ${u.unitIndex}, ${u.done}, ${u.quantity})">
-          <span>โต๊ะ ${group.table}${isHome?` <span class="home-tag">กลับบ้าน</span>`:''}</span>
+        return `<div class="table-item ${u.done?'ready':''}" onclick='event.stopPropagation(); if (tapGuard(this,${jsAttr("u:"+u.orderId+":"+u.unitIndex)})) toggleNonBUnit(${jsAttr(u.orderId)}, ${u.unitIndex}, ${u.done}, ${u.quantity})'>
+          <span>${tableLabelHtml(group.table)} <span style="color:#888;font-size:0.8em;">จานที่ ${idx+1}/${units.length}</span></span>
           <span class="qty-circle" style="${u.done?'':'background:'+color}">${u.done?'✓':''}</span>
         </div>`;
       }).join('');
@@ -896,56 +1284,83 @@ function renderOrders() {
       card.style.borderColor = color;
       card.innerHTML = `
         <div class="card-header ${isAllReady?'ready':''}" style="${isAllReady?'':'background:'+color}"
-          onclick='toggleNonBBlock(${JSON.stringify(unitsPayload)}, ${isAllReady})'>
-          <span>${group.item} — โต๊ะ ${group.table}${isHome?` <span class="home-tag">กลับบ้าน</span>`:''}</span>
-          <span class="qty-circle" style="background:white; color:${color};">${remainingQty}</span>
+          onclick='if (tapGuard(this,${jsAttr("n:"+group.item+"|"+group.table)})) toggleNonBBlock(${JSON.stringify(unitsPayload)}, ${isAllReady})'>
+          <span>${esc(group.item)} — ${tableLabelHtml(group.table)}</span>
+          <span class="qty-circle" style="background:white; color:${color};">${esc(remainingQty)}</span>
         </div>
-        ${group.comment?`<div class="card-comment">⚠️ ${group.comment}</div>`:''}
+        ${group.comment?`<div class="card-comment">⚠️ ${esc(group.comment)}</div>`:''}
         <div class="table-list">${unitsHtml}</div>`;
-      listEl.appendChild(card);
+      listEl.appendChild(wrapSwipeCard(card, units.map(u => u.orderId), isAllReady));
     }
+  });
+
+  // [FIX] เปิด/ปิดคอลัมน์ "ยังไม่ระบุแม่ครัว" ตามว่ามีออเดอร์ค้างอยู่ไหม
+  const ucol = document.getElementById('col-' + UNASSIGNED);
+  const ulist = document.getElementById('list-' + UNASSIGNED);
+  if (ucol && ulist) {
+    const has = ulist.children.length > 0;
+    const wasHidden = ucol.classList.contains('hidden');
+    ucol.classList.toggle('hidden', !has);
+    if (wasHidden !== !has) updateGridColumns();
+  }
+
+  // [NEW] อัพเดตป้ายจำนวนรายการที่ถูกซ่อนอยู่ของแต่ละคน
+  activeChefs.forEach(cid => updateHiddenBadge(cid, hiddenCountByChef[cid] || 0));
+
+  // คืนตำแหน่งที่เลื่อนไว้เดิม
+  Object.keys(scrollMemo).forEach(id => {
+    const el = document.getElementById('list-'+id);
+    if (el && scrollMemo[id]) el.scrollTop = scrollMemo[id];
   });
 
   pendingQueueTop3 = pendingList
     .sort((a,b) => new Date(a.ts) - new Date(b.ts))
-    .slice(0, 3);
+    .slice(0, 5);
   updateQueueAlertDisplay();
 }
 
-// ---- แถบเตือน "คิวค้างนานสุด" (3 อันดับแรก) ----
+// ---- แถบเตือน "คิวค้างนานสุด" (5 อันดับแรก) ----
 let pendingQueueTop3 = [];
 
+let _queueBarSig = '';   // [FIX] จำหน้าตาเดิม ถ้าไม่เปลี่ยนจะไม่วาดซ้ำ (กันกด chip ไม่ติดตอนรีเฟรช)
 function updateQueueAlertDisplay() {
   const bar = document.getElementById('queueAlertBar');
   if (!bar) return;
 
   if (!pendingQueueTop3.length) {
-    bar.classList.remove('urgent');
-    bar.style.background = '#34495e';
-    bar.innerHTML = `<span>✅ ไม่มีคิวค้างนาน</span>`;
-    adjustLayoutOffsets();
+    const html = `<span>✅ ไม่มีคิวค้างนาน</span>`;
+    if (_queueBarSig !== html) {
+      _queueBarSig = html;
+      bar.classList.remove('urgent');
+      bar.style.background = '#34495e';
+      bar.innerHTML = html;
+      adjustLayoutOffsets();
+    }
     return;
   }
 
   const chipsHtml = pendingQueueTop3.map((p, idx) => {
     const mins = Math.max(0, Math.floor((Date.now() - new Date(p.ts).getTime()) / 60000));
     const isUrgent = mins >= 10;
-    const isHome = p.table && /[ก-๙]/.test(p.table);
-    const tableTxt = p.table ? ` (โต๊ะ ${p.table}${isHome?` <span class="home-tag home-tag-sm">กลับบ้าน</span>`:''})` : '';
-    const commentTxt = p.comment ? ` <span class="chip-comment">⚠️ ${p.comment}</span>` : '';
+    const tableTxt = p.table ? ` (${tableLabelHtml(p.table, true)})` : '';
+    const commentTxt = p.comment ? ` <span class="chip-comment">⚠️ ${esc(p.comment)}</span>` : '';
     const chipColor = CHEF_COLORS[p.chefId] || '#7f8c8d';
-    return `<span class="queue-alert-chip ${isUrgent?'chip-urgent':''}" style="border-color:${chipColor};" onclick="focusChef('${p.chefId}')">
-      <b>${idx+1}.</b> ${p.chefName} · ${p.item}${commentTxt}${tableTxt} · ${mins} นาที
+    return `<span class="queue-alert-chip ${isUrgent?'chip-urgent':''}" style="border-color:${chipColor};" data-chef="${esc(p.chefId)}" onclick="focusChef(this.dataset.chef)">
+      <b>${idx+1}.</b> ${esc(p.chefName)} · ${esc(p.item)}${commentTxt}${tableTxt} · ${mins} นาที
     </span>`;
   }).join('');
 
   const anyUrgent = pendingQueueTop3.some(p => (Date.now() - new Date(p.ts).getTime()) >= 10*60000);
+  const html = `<span class="queue-alert-label">⏰ คิวรอนานสุด:</span><div class="queue-alert-chips">${chipsHtml}</div>`;
   bar.classList.toggle('urgent', anyUrgent);
-  bar.style.background = '#34495e';
-  bar.innerHTML = `<span class="queue-alert-label">⏰ คิวรอนานสุด:</span><div class="queue-alert-chips">${chipsHtml}</div>`;
-  adjustLayoutOffsets();
+  if (_queueBarSig !== html) {
+    _queueBarSig = html;
+    bar.style.background = '#34495e';
+    bar.innerHTML = html;
+    adjustLayoutOffsets();
+  }
 }
-// รีเฟรชตัวเลข "รอมาแล้วกี่นาที" เป็นระยะ แม้ยังไม่มีออเดอร์ใหม่เข้ามา
+// รีเฟรชตัวเลข "รอมาแล้วกี่นาที" ทุก 15 วินาที แม้ยังไม่มีออเดอร์ใหม่เข้ามา
 setInterval(updateQueueAlertDisplay, 15000);
 
 // เผื่อจำนวนบรรทัดของแถบเตือนเปลี่ยน (1 บรรทัด vs 2 บรรทัดตอนจอแคบ) ให้ดันเนื้อหาด้านล่างลงมาตามจริงเสมอ
@@ -966,6 +1381,14 @@ window.addEventListener('resize', adjustLayoutOffsets);
 function focusChef(chefId) {
   const col = document.getElementById('col-' + chefId);
   if (!col) return;
+  // [FIX] ถ้าคอลัมน์นั้นถูกซ่อนไว้ ให้เปิดกลับมาให้อัตโนมัติ ไม่งั้นกดแล้วไม่เกิดอะไร
+  if (col.classList.contains('hidden')) {
+    col.classList.remove('hidden');
+    const h = getHiddenChefs(); h.delete(chefId); saveHiddenChefs(h);
+    const b = document.getElementById('selbtn-' + chefId);
+    if (b) { b.classList.add('active'); b.style.background = CHEF_COLORS[chefId] || '#555'; b.style.color = 'white'; }
+    updateGridColumns();
+  }
   col.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
   col.classList.add('pulse-highlight');
   setTimeout(() => col.classList.remove('pulse-highlight'), 1900);
@@ -1004,7 +1427,22 @@ function toggleNonBBlock(unitsPayloadStr, isAllReady) {
 }
 
 // ---- Boot ----
+// [FIX] กันจอครัวดับเองระหว่างใช้งาน (ทำงานเฉพาะเบราว์เซอร์ที่รองรับ ถ้าไม่รองรับก็ไม่มีผลเสีย)
+let _wakeLock = null;
+async function requestWakeLock() {
+  try {
+    if ('wakeLock' in navigator) {
+      _wakeLock = await navigator.wakeLock.request('screen');
+      _wakeLock.addEventListener('release', () => { _wakeLock = null; });
+    }
+  } catch (e) { /* อุปกรณ์/เบราว์เซอร์ไม่รองรับ - ข้ามไป */ }
+}
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible' && !_wakeLock) requestWakeLock();
+});
+
 window.addEventListener('load', () => {
+  requestWakeLock();
   initAccessCode();
   db.ref(BASE_PATH+'menuPrices').on('value', snap => { menuPrices = snap.val()||{}; });
   loadMenuCategories();
@@ -1012,13 +1450,20 @@ window.addEventListener('load', () => {
 
   db.ref(BASE_PATH+'orders').on('value', snap => {
     const data = snap.val();
+    if (!window.ghostRemoveTries) window.ghostRemoveTries = {};
     const rawOrders = data ? Object.entries(data).map(([id,val])=>({id,...val})) : [];
     // --- กันออเดอร์ผี: บาง record อาจเหลือแค่บาง field (เช่น status) เพราะเครื่องหนึ่งออฟไลน์แล้วมี
     // เครื่องอื่นลบออเดอร์นั้นไปก่อนที่คำสั่งค้างจะ sync กลับมา ทำให้ path ถูกสร้างใหม่แบบข้อมูลไม่ครบ
     // (ไม่มี table/item) -> กรองไม่ให้แสดง และลบทิ้งออกจากฐานข้อมูลอัตโนมัติ
     const ghostOrders = rawOrders.filter(o => !o.table || !o.item);
+    // [FIX] จำกัดจำนวนครั้งที่พยายามลบ กันกรณี Rules ไม่อนุญาตแล้ววนลบไม่สิ้นสุด จนโควต้าหมด
     if (ghostOrders.length > 0) {
-      ghostOrders.forEach(o => db.ref(BASE_PATH+'orders/'+o.id).remove());
+      ghostOrders.forEach(o => {
+        const tries = (ghostRemoveTries[o.id] || 0);
+        if (tries >= 3) return;
+        ghostRemoveTries[o.id] = tries + 1;
+        db.ref(BASE_PATH+'orders/'+o.id).remove().catch(() => {});
+      });
     }
     currentOrders = rawOrders.filter(o => o.table && o.item);
     renderOrders();
@@ -1090,14 +1535,13 @@ function renderNonBatchTab() {
     </div>
     ${filtered.map(item => {
       const isSplit = nonBatchableItems.includes(item);
-      const safeItem = item.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
       return `<div style="display:flex; align-items:center; justify-content:space-between; padding:13px 16px; border-bottom:1px solid #f0f0f0; background:${isSplit?'#fff8f5':'white'};">
         <span style="flex:1; font-size:15px; font-weight:${isSplit?'bold':'normal'}; color:${isSplit?'#c0392b':'#2c3e50'};">
-          ${isSplit ? '🔴' : '🟢'} ${item}
+          ${isSplit ? '🔴' : '🟢'} ${esc(item)}
         </span>
         <div style="display:flex; align-items:center; gap:8px;">
           <span style="font-size:13px; color:${isSplit?'#e74c3c':'#27ae60'}; font-weight:bold; min-width:28px; text-align:right;">${isSplit?'แยก':'รวม'}</span>
-          <div onclick="toggleNonBatch('${safeItem}', ${isSplit})"
+          <div data-item="${esc(item)}" data-split="${isSplit?'1':'0'}" onclick="toggleNonBatch(this.dataset.item, this.dataset.split==='1')"
             style="width:46px; height:26px; border-radius:13px; background:${isSplit?'#e74c3c':'#27ae60'}; position:relative; cursor:pointer; flex-shrink:0; box-shadow:inset 0 1px 3px rgba(0,0,0,0.15);">
             <div style="width:20px; height:20px; border-radius:50%; background:white; position:absolute; top:3px; ${isSplit?'right:3px':'left:3px'}; box-shadow:0 1px 3px rgba(0,0,0,0.3);"></div>
           </div>
@@ -1108,14 +1552,16 @@ function renderNonBatchTab() {
 
 function toggleNonBatch(itemName, currentlySplit) {
   const statusEl = document.getElementById('nbStatus');
-  if (currentlySplit) {
-    nonBatchableItems = nonBatchableItems.filter(x => x !== itemName);
-  } else {
-    if (!nonBatchableItems.includes(itemName)) nonBatchableItems.push(itemName);
-  }
-  const nbObj = {};
-  nonBatchableItems.forEach((k, i) => nbObj[i] = k);
-  db.ref(BASE_PATH + 'chefConfig/__nonBatchable__').set(nbObj).then(() => {
+  // [FIX] อ่านค่าล่าสุดจาก Firebase ก่อน กันทับรายการที่เครื่องอื่นเพิ่งเปลี่ยน
+  db.ref(BASE_PATH + 'chefConfig/__nonBatchable__').once('value').then(snap => {
+    let list = Object.values(snap.val() || {});
+    if (currentlySplit) list = list.filter(x => x !== itemName);
+    else if (!list.includes(itemName)) list.push(itemName);
+    nonBatchableItems = list;
+    const nbObj = {};
+    list.forEach((k, i) => nbObj[i] = k);
+    return db.ref(BASE_PATH + 'chefConfig/__nonBatchable__').set(nbObj);
+  }).then(() => {
     if (statusEl) {
       statusEl.style.color = '#27ae60';
       statusEl.textContent = currentlySplit
@@ -1194,8 +1640,22 @@ function initAccessCode() {
                 unlockApp(); // รหัสตรงกับ server → เข้าได้
             }
             // กรณีอื่น → คง locked ไว้
-
-            // Step 3: หลัง verify แล้ว ค่อย listen realtime เพื่อตรวจรหัสเปลี่ยน
+        })
+        .catch(() => {
+            // [FIX] เน็ตสะดุดตอนเปิดเครื่อง: ถ้าเคยจำรหัสที่ถูกไว้ ให้ SDK ยืนยันแทน ไม่งั้นล็อกถาวร
+            const saved = localStorage.getItem(ACCESS_LS_KEY);
+            if (!saved) { lockApp(); return; }
+            db.ref(ACCESS_CODE_FB_PATH).once('value')
+                .then(snap => {
+                    const stored = snap.val();
+                    if (!stored || saved === stored) unlockApp();
+                })
+                .catch(() => lockApp());
+        })
+        .then(() => {
+            // [FIX] ติด listener เสมอ ไม่ว่า fetch จะสำเร็จหรือพัง
+            if (window._accessWatching) return;
+            window._accessWatching = true;
             db.ref(ACCESS_CODE_FB_PATH).on('value', snap => {
                 const newStored = snap.val();
                 const nowSaved = localStorage.getItem(ACCESS_LS_KEY);
@@ -1204,9 +1664,6 @@ function initAccessCode() {
                     lockApp(); // รหัสเปลี่ยน → ล็อคทันที
                 }
             });
-        })
-        .catch(() => {
-            lockApp(); // network error → ล็อคไว้ก่อน
         });
 }
 // ================= จบระบบ Access Code =================
