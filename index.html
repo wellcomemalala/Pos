@@ -22,7 +22,6 @@
     .queue-alert-chip { display:inline-flex; align-items:center; gap:3px; background:rgba(255,255,255,0.12); border:2px solid #7f8c8d; border-radius:14px; padding:3px 10px; font-size:14px; font-weight:600; cursor:pointer; white-space:nowrap; }
     .queue-alert-chip.chip-urgent { background:rgba(231,76,60,0.85); border-color:#ffdcdc; }
     .chip-comment { background:#fff3cd; color:#856404; padding:1px 7px; border-radius:8px; margin:0 2px; }
-    .home-tag-sm { font-size:12px; padding:1px 4px; margin-left:3px; }
     @keyframes pulseHighlight { 0%,100% { box-shadow:0 6px 15px rgba(0,0,0,0.05); } 50% { box-shadow:0 0 0 8px rgba(231,76,60,0.65); } }
     .pulse-highlight { animation: pulseHighlight 0.6s ease-in-out 3; }
     /* ================= จบแถบเตือนคิวค้างนานสุด ================= */
@@ -96,7 +95,28 @@
     .table-item.ready { background:#e8f5e9; color:#aaa; text-decoration:line-through; }
     .table-item.ready .qty-circle { background:#aaa; }
     .qty-circle { background:#007bff; color:white; min-width:40px; height:40px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:22px; }
-    .home-tag { color:#e74c3c; font-size:18px; margin-left:10px; border:2px solid #e74c3c; padding:2px 5px; border-radius:5px; }
+    .home-tag {
+      display:inline-block;
+      color:#ffffff !important;
+      font-size:19px;
+      font-weight:800;
+      letter-spacing:0.3px;
+      padding:3px 11px;
+      border-radius:8px;
+      border:2px solid rgba(255,255,255,0.92);
+      box-shadow:0 2px 5px rgba(0,0,0,0.22);
+      text-shadow:0 1px 2px rgba(0,0,0,0.45);
+      line-height:1.25;
+      vertical-align:middle;
+    }
+    .home-tag-sm {
+      font-size:13px;
+      padding:1px 8px;
+      margin:0 2px;
+      border-radius:6px;
+      border-width:1.5px;
+    }
+    .table-item.ready .home-tag { opacity:0.5; text-decoration:line-through; }
     .hidden { display:none !important; }
 
     /* ===== [NEW] แตะ 2 ครั้งเพื่อยืนยันว่าเสร็จ ===== */
@@ -200,7 +220,6 @@
 
 <div id="syncStatusBar">
   <span id="syncStatusText">กำลังเชื่อมต่อ...</span>
-  <button id="adminBtn" onclick="openKitchenPin()">⚙️ จัดการ</button>
 </div>
 
 <div id="queueAlertBar">
@@ -220,124 +239,6 @@
 </div>
 <!-- ================= จบ Offline Blocking Overlay ================= -->
 
-<!-- PIN Modal -->
-<div id="kitchenPinOverlay">
-  <div class="kpin-box">
-    <h2 style="margin:0 0 8px; color:#2c3e50; font-size:20px;">🔒 ใส่รหัส PIN</h2>
-    <p style="color:#aaa; font-size:13px; margin:0 0 16px;">สำหรับผู้ดูแลระบบเท่านั้น</p>
-    <div id="kpinDots" style="display:flex; justify-content:center; gap:10px; margin-bottom:18px;">
-      <div class="kpin-dot"></div><div class="kpin-dot"></div><div class="kpin-dot"></div><div class="kpin-dot"></div>
-    </div>
-    <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:8px; max-width:220px; margin:0 auto 12px;">
-      <button class="kpin-key" onclick="kpinKey('1')">1</button>
-      <button class="kpin-key" onclick="kpinKey('2')">2</button>
-      <button class="kpin-key" onclick="kpinKey('3')">3</button>
-      <button class="kpin-key" onclick="kpinKey('4')">4</button>
-      <button class="kpin-key" onclick="kpinKey('5')">5</button>
-      <button class="kpin-key" onclick="kpinKey('6')">6</button>
-      <button class="kpin-key" onclick="kpinKey('7')">7</button>
-      <button class="kpin-key" onclick="kpinKey('8')">8</button>
-      <button class="kpin-key" onclick="kpinKey('9')">9</button>
-      <button class="kpin-key" onclick="kpinKey('clear')" style="background:#e74c3c;color:white;">✕</button>
-      <button class="kpin-key" onclick="kpinKey('0')">0</button>
-      <button class="kpin-key" onclick="kpinKey('back')" style="background:#e67e22;color:white;">⌫</button>
-    </div>
-    <p id="kpinError" style="color:#e74c3c; font-size:13px; min-height:18px; margin:0 0 10px;"></p>
-    <button onclick="closeKitchenPin()" style="background:none; border:1px solid #ccc; color:#999; padding:7px 18px; border-radius:8px; cursor:pointer; font-size:13px;">ยกเลิก</button>
-  </div>
-</div>
-
-<!-- Admin Panel -->
-<div id="adminOverlay">
-  <div id="adminPanel">
-    <div class="admin-header">
-      <div>
-        <div style="color:white; font-size:21px; font-weight:bold;">🍽️ จัดการเมนูครัว</div>
-        <div style="color:rgba(255,255,255,0.75); font-size:13px; margin-top:2px;">เพิ่มเมนู · กำหนดราคา · มอบหมายแม่ครัว</div>
-      </div>
-      <button onclick="closeAdmin()" style="background:rgba(255,255,255,0.2); border:none; color:white; font-size:22px; width:40px; height:40px; border-radius:50%; cursor:pointer;">✕</button>
-    </div>
-
-    <div class="admin-tabs">
-      <button id="admTab1" class="adm-tab active" onclick="admSetTab(1)">➕ เพิ่มเมนูใหม่</button>
-      <button id="admTab2" class="adm-tab"        onclick="admSetTab(2)">👨‍🍳 มอบหมายแม่ครัว</button>
-      <button id="admTab3" class="adm-tab"        onclick="admSetTab(3)">💰 แก้ราคาเมนู</button>
-      <button id="admTab4" class="adm-tab"        onclick="admSetTab(4)">🔀 สั่งแยก/รวม</button>
-      <div style="flex:1;"></div>
-      <span id="admSaveStatus"></span>
-    </div>
-
-    <!-- Tab 1: เพิ่มเมนูใหม่ -->
-    <div id="admPanel1" class="admin-body">
-      <div class="field-group">
-        <div class="field-label">ชื่อเมนู *</div>
-        <input id="newMenuName" class="adm-input" type="text" placeholder="เช่น คั่วไก่ใบมะกรูด" maxlength="40"
-          onkeydown="if(event.key==='Enter') document.getElementById('newMenuPrice').focus()">
-      </div>
-      <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
-        <div class="field-group">
-          <div class="field-label">ราคา (บาท)</div>
-          <input id="newMenuPrice" class="adm-input" type="number" min="0" step="1" placeholder="0"
-            onkeydown="if(event.key==='Enter') document.getElementById('newMenuCat').focus()">
-        </div>
-        <div class="field-group">
-          <div class="field-label">หมวดหมู่</div>
-          <select id="newMenuCat" class="adm-select"></select>
-        </div>
-      </div>
-      <div class="field-group">
-        <div class="field-label">มอบหมายให้แม่ครัว (เลือกได้หลายคน)</div>
-        <div class="chef-checkbox-grid" id="chefCheckboxes"></div>
-      </div>
-      <div class="field-group">
-        <div class="field-label" style="display:flex; align-items:center; gap:8px;">
-          <input type="checkbox" id="isNonBatchable" style="width:16px;height:16px;">
-          <span>สั่งแยกรายการ (ไม่รวมกับโต๊ะอื่น) เช่น ไข่เจียว, ของเดี่ยว</span>
-        </div>
-      </div>
-      <button class="adm-btn-primary" onclick="addNewMenuItem()">✅ เพิ่มเมนูนี้</button>
-      <p id="addMenuResult" style="text-align:center; margin-top:10px; font-size:15px; min-height:20px;"></p>
-    </div>
-
-    <!-- Tab 2: มอบหมายแม่ครัว -->
-    <div id="admPanel2" class="admin-body" style="display:none;">
-      <p style="color:#888; font-size:14px; margin:0 0 14px;">กำหนด "คีย์เวิร์ด" ให้แต่ละแม่ครัว — เมนูที่มีคำนี้ในชื่อจะถูกส่งให้แม่ครัวคนนั้น</p>
-      <div id="chefCardsContainer"></div>
-    </div>
-
-    <!-- Tab 3: แก้ราคา -->
-    <div id="admPanel3" class="admin-body" style="display:none;">
-      <div style="margin-bottom:12px; display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
-        <input id="priceSearch" type="text" placeholder="ค้นหาเมนู..." oninput="renderPriceTab()" 
-          style="flex:1; min-width:150px; font-size:15px; padding:8px 12px; border:2px solid #27ae60; border-radius:8px;">
-        <button onclick="savePriceTab()" style="background:#27ae60; color:white; border:none; padding:9px 18px; border-radius:8px; font-size:15px; cursor:pointer; font-weight:bold;">💾 บันทึกราคา</button>
-      </div>
-      <div id="priceTabList" style="max-height:55vh; overflow-y:auto;"></div>
-    </div>
-
-    <!-- Tab 4: จัดการสั่งแยก/รวม -->
-    <div id="admPanel4" class="admin-body" style="display:none;">
-      <p style="color:#555; font-size:14px; margin:0 0 14px; line-height:1.6; background:#fff3e0; padding:10px 14px; border-radius:8px; border-left:4px solid #e67e22;">
-        <strong>🔴 สั่งแยก</strong> — ครัวเห็นแยกทีละโต๊ะ ไม่รวมกัน (เช่น ไข่เจียวโต๊ะ 1 / ไข่เจียวโต๊ะ 3)<br>
-        <strong>🟢 รวมได้</strong> — ครัวเห็นรวมยอดทุกโต๊ะเป็นการ์ดเดียว (เช่น ลาบรวม 5 จาน)
-      </p>
-      <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-bottom:12px;">
-        <input id="nbSearch" type="text" placeholder="🔍 ค้นหาเมนู..." oninput="renderNonBatchTab()"
-          style="flex:1; min-width:150px; font-size:15px; padding:8px 12px; border:2px solid #e67e22; border-radius:8px;">
-        <button onclick="nbSetFilter('all')" id="nbBtnAll"
-          style="background:#e67e22; color:white; border:2px solid #e67e22; padding:8px 13px; border-radius:8px; font-size:13px; font-weight:bold; cursor:pointer;">ทั้งหมด</button>
-        <button onclick="nbSetFilter('split')" id="nbBtnSplit"
-          style="background:#f8f9fa; color:#555; border:2px solid #ddd; padding:8px 13px; border-radius:8px; font-size:13px; font-weight:bold; cursor:pointer;">🔴 แยก</button>
-        <button onclick="nbSetFilter('merge')" id="nbBtnMerge"
-          style="background:#f8f9fa; color:#555; border:2px solid #ddd; padding:8px 13px; border-radius:8px; font-size:13px; font-weight:bold; cursor:pointer;">🟢 รวม</button>
-      </div>
-      <div id="nbMenuList" style="max-height:52vh; overflow-y:auto; border:1px solid #eee; border-radius:10px;"></div>
-      <div id="nbStatus" style="text-align:center; margin-top:10px; font-size:14px; color:#27ae60; min-height:18px;"></div>
-    </div>
-
-  </div>
-</div>
-
 <!-- ================= Access Code Overlay ================= -->
 <div id="accessOverlay" class="show">
   <div id="accessBox">
@@ -349,12 +250,6 @@
       autocomplete="off">
     <button id="accessBtn" onclick="checkAccessCode()">✅ เข้าใช้งาน</button>
     <p id="accessError"></p>
-    <div style="margin-top:18px; padding-top:14px; border-top:1px solid #eee;">
-      <button onclick="openKitchenPin()"
-        style="background:none; border:1px solid #ccc; color:#aaa; font-size:13px; padding:7px 14px; border-radius:8px; cursor:pointer; width:100%;">
-        ⚙️ ตั้งค่าระบบ (เจ้าของ)
-      </button>
-    </div>
   </div>
 </div>
 <!-- ================= จบ Access Code Overlay ================= -->
@@ -421,20 +316,37 @@ function chefNameOf(id) {
 // ช่องทางที่ "ไม่ใช่โต๊ะในร้าน" — เดิมใช้ regex เช็กว่ามีอักษรไทยไหม ทำให้ แกร็บ/ไลน์แมน/ช็อปปี้/โต๊ะจอง
 // ติดป้าย "กลับบ้าน" ผิดหมด ครัวแพ็คใส่กล่องผิดแบบ
 const CHANNEL_TAGS = {
-  'กลับบ้าน': { label:'กลับบ้าน', bg:'#e67e22' },
-  'แกรป':     { label:'แกร็บ',    bg:'#00b14f' },
-  'แกร็บ':    { label:'แกร็บ',    bg:'#00b14f' },
-  'ไลน์แมน':  { label:'ไลน์แมน',  bg:'#06c755' },
-  'ช็อปปี้':   { label:'ช็อปปี้',   bg:'#ee4d2d' },
-  'โต๊ะจอง':  { label:'โต๊ะจอง',  bg:'#8e44ad' }
+  'กลับบ้าน': { label:'🛍️ กลับบ้าน', bg:'#d35400' },
+  'แกรป':     { label:'🟢 แกร็บ',    bg:'#008a3e' },
+  'แกร็บ':    { label:'🟢 แกร็บ',    bg:'#008a3e' },
+  'ไลน์แมน':  { label:'🛵 ไลน์แมน',  bg:'#038f3d' },
+  'ช็อปปี้':   { label:'🟠 ช็อปปี้',   bg:'#d63010' },
+  'ช้อปปี้':   { label:'🟠 ช็อปปี้',   bg:'#d63010' },
+  'โต๊ะจอง':  { label:'📌 โต๊ะจอง',  bg:'#7d3c98' }
 };
-// คืน HTML ของชื่อโต๊ะ/ช่องทาง พร้อมป้ายกำกับที่ถูกต้อง
-function tableLabelHtml(raw, small) {
+// คืน HTML ของชื่อโต๊ะ/ช่องทาง พร้อมป้ายกำกับที่ถูกต้อง (รองรับเลขคิวต่อท้าย เช่น "กลับบ้าน 1", "แกรป 12" และออเดอร์โต๊ะจองอัตโนมัติ)
+function tableLabelHtml(raw, small, isReserved, reservedFor) {
   const t = String(raw == null ? '' : raw).trim();
-  const tag = CHANNEL_TAGS[t];
   const cls = 'home-tag' + (small ? ' home-tag-sm' : '');
-  if (tag) {
-    return '<span class="' + cls + '" style="background:' + tag.bg + '">' + esc(tag.label) + '</span>';
+  const exact = CHANNEL_TAGS[t];
+  if (exact) {
+    return '<span class="' + cls + '" style="background:' + exact.bg + '">' + esc(exact.label) + '</span>';
+  }
+  for (const [prefix, tag] of Object.entries(CHANNEL_TAGS)) {
+    if (t.startsWith(prefix)) {
+      const rest = t.slice(prefix.length).trim();
+      if (!rest || /^[0-9A-Za-zก-๙#-]+/.test(rest)) {
+        const text = rest ? (tag.label + ' ' + rest) : tag.label;
+        return '<span class="' + cls + '" style="background:' + tag.bg + '">' + esc(text) + '</span>';
+      }
+    }
+  }
+  if (isReserved || reservedFor) {
+    const resTag = CHANNEL_TAGS['โต๊ะจอง'];
+    const rName = String(reservedFor == null ? '' : reservedFor).trim();
+    const extra = (!small && rName && rName !== t) ? (' (' + rName + ')') : '';
+    const text = t ? (resTag.label + ' ' + t + extra) : (resTag.label + extra);
+    return '<span class="' + cls + '" style="background:' + resTag.bg + '">' + esc(text) + '</span>';
   }
   return 'โต๊ะ ' + esc(t);
 }
@@ -459,393 +371,8 @@ let kpinLockUntil = 0;
 let kpinSetupMode = false;             // [FIX] โหมดตั้ง PIN ครั้งแรก
 let kpinFirstEntry = '';
 
-// ---- PIN helpers ----
+// ---- Hash helper ----
 function simpleHash(s) { let h=5381; for(let i=0;i<s.length;i++) h=((h<<5)+h)^s.charCodeAt(i); return (h>>>0).toString(16); }
-function isPinUnlocked() { return (Date.now()-kpinUnlockedAt) < 30*60*1000; }
-
-function openKitchenPin() {
-  if (isPinUnlocked()) { openAdmin(); return; }
-  kpinBuffer = '';
-  kpinSetupMode = false;
-  kpinFirstEntry = '';
-  updateKpinDots();
-  const errEl = document.getElementById('kpinError');
-  errEl.textContent = '';
-  document.getElementById('kitchenPinOverlay').classList.add('show');
-  // [FIX] ถ้ายังไม่เคยตั้ง PIN ให้เข้าโหมด "ตั้งรหัสใหม่" แทนการปล่อยให้ใครก็เข้าได้
-  db.ref(BASE_PATH+'ownerPin').once('value', snap => {
-    if (!snap.val()) {
-      kpinSetupMode = true;
-      errEl.style.color = '#e67e22';
-      errEl.textContent = '🔐 ยังไม่เคยตั้ง PIN — กรุณาตั้งรหัส 4 หลักใหม่';
-    }
-  });
-}
-function closeKitchenPin() {
-  document.getElementById('kitchenPinOverlay').classList.remove('show');
-  kpinBuffer = '';
-}
-function updateKpinDots() {
-  document.querySelectorAll('.kpin-dot').forEach((d,i) => d.classList.toggle('filled', i < kpinBuffer.length));
-}
-function kpinKey(k) {
-  if (k==='clear') { kpinBuffer=''; updateKpinDots(); return; }
-  if (k==='back')  { kpinBuffer=kpinBuffer.slice(0,-1); updateKpinDots(); return; }
-  if (kpinBuffer.length>=4) return;
-  kpinBuffer+=k; updateKpinDots();
-  if (kpinBuffer.length===4) setTimeout(checkKPin, 120);
-}
-function checkKPin() {
-  const errEl = document.getElementById('kpinError');
-  // [FIX] ล็อกชั่วคราวเมื่อกดผิดซ้ำ ป้องกันไล่เดา PIN 4 หลัก
-  if (Date.now() < kpinLockUntil) {
-    const wait = Math.ceil((kpinLockUntil - Date.now())/1000);
-    errEl.style.color = '#e74c3c';
-    errEl.textContent = '🔒 ใส่ผิดหลายครั้ง รออีก ' + wait + ' วินาที';
-    kpinBuffer = ''; updateKpinDots();
-    return;
-  }
-
-  const entered = simpleHash(kpinBuffer);
-
-  // [FIX] โหมดตั้ง PIN ครั้งแรก: ต้องกรอกซ้ำให้ตรงกัน แล้วจึงบันทึก
-  if (kpinSetupMode) {
-    if (!kpinFirstEntry) {
-      kpinFirstEntry = entered;
-      kpinBuffer = ''; updateKpinDots();
-      errEl.style.color = '#e67e22';
-      errEl.textContent = '🔁 กรอกรหัสเดิมอีกครั้งเพื่อยืนยัน';
-      return;
-    }
-    if (kpinFirstEntry !== entered) {
-      kpinFirstEntry = '';
-      kpinBuffer = ''; updateKpinDots();
-      errEl.style.color = '#e74c3c';
-      errEl.textContent = '❌ รหัสสองครั้งไม่ตรงกัน เริ่มใหม่';
-      return;
-    }
-    db.ref(BASE_PATH+'ownerPin').set(entered).then(() => {
-      kpinSetupMode = false; kpinFirstEntry = '';
-      kpinUnlockedAt = Date.now();
-      closeKitchenPin();
-      openAdmin();
-    }).catch(e => {
-      errEl.style.color = '#e74c3c';
-      errEl.textContent = '❌ บันทึก PIN ไม่สำเร็จ: ' + e.message;
-      kpinBuffer = ''; updateKpinDots();
-    });
-    return;
-  }
-
-  db.ref(BASE_PATH+'ownerPin').once('value', snap => {
-    const stored = snap.val();
-    if (!stored) {
-      // ไม่มี PIN ในระบบ -> ไม่ปล่อยผ่าน แต่ให้ตั้งใหม่
-      kpinSetupMode = true; kpinFirstEntry = '';
-      kpinBuffer = ''; updateKpinDots();
-      errEl.style.color = '#e67e22';
-      errEl.textContent = '🔐 ยังไม่เคยตั้ง PIN — กรุณาตั้งรหัส 4 หลักใหม่';
-      return;
-    }
-    if (entered === stored) {
-      kpinFailCount = 0;
-      kpinUnlockedAt = Date.now();
-      closeKitchenPin();
-      openAdmin();
-    } else {
-      kpinFailCount++;
-      kpinBuffer = ''; updateKpinDots();
-      errEl.style.color = '#e74c3c';
-      if (kpinFailCount >= 5) {
-        kpinLockUntil = Date.now() + 60000;
-        kpinFailCount = 0;
-        errEl.textContent = '🔒 ใส่ผิด 5 ครั้ง ล็อก 60 วินาที';
-      } else {
-        errEl.textContent = '❌ PIN ไม่ถูกต้อง (' + kpinFailCount + '/5)';
-      }
-    }
-  });
-}
-
-// ---- Admin panel ----
-function openAdmin() {
-  document.getElementById('adminOverlay').classList.add('show');
-  admSetTab(1);
-}
-function closeAdmin() {
-  document.getElementById('adminOverlay').classList.remove('show');
-  admCurrentTab = 0;
-}
-// [FIX] วาดแท็บที่เปิดอยู่ใหม่ เมื่อเมนู/คีย์เวิร์ดถูกแก้จากอีกเครื่อง
-function admRefreshOpenTab() {
-  const ov = document.getElementById('adminOverlay');
-  if (!ov || !ov.classList.contains('show') || !admCurrentTab) return;
-  if (admCurrentTab===1) renderAddMenuTab();
-  if (admCurrentTab===2) renderChefCards();
-  if (admCurrentTab===3) renderPriceTab();
-  if (admCurrentTab===4) renderNonBatchTab();
-}
-let admCurrentTab = 0;   // [FIX] จำแท็บที่เปิดอยู่ เพื่อรีเฟรชเมื่อข้อมูลเปลี่ยนจากเครื่องอื่น
-function admSetTab(n) {
-  admCurrentTab = n;
-  [1,2,3,4].forEach(i => {
-    const tab = document.getElementById('admTab'+i);
-    const panel = document.getElementById('admPanel'+i);
-    if (tab) tab.className = 'adm-tab' + (i===n?' active':'');
-    if (panel) panel.style.display = i===n?'block':'none';
-  });
-  if (n===1) renderAddMenuTab();
-  if (n===2) renderChefCards();
-  if (n===3) renderPriceTab();
-  if (n===4) renderNonBatchTab();
-}
-function admShowStatus(msg, ok=true) {
-  const el = document.getElementById('admSaveStatus');
-  el.textContent = msg;
-  el.style.color = ok ? '#27ae60' : '#e74c3c';
-  setTimeout(() => el.textContent='', 2800);
-}
-
-// ---- Tab 1: เพิ่มเมนูใหม่ ----
-function renderAddMenuTab() {
-  // populate category select
-  const sel = document.getElementById('newMenuCat');
-  sel.innerHTML = Object.keys(menuCategories).map(c=>`<option>${c}</option>`).join('');
-  // populate chef checkboxes
-  const box = document.getElementById('chefCheckboxes');
-  box.innerHTML = '';
-  Object.entries(chefConfig).forEach(([id, cfg]) => {
-    const color = CHEF_COLORS[id] || '#555';
-    const div = document.createElement('div');
-    div.className = 'chef-checkbox-item';
-    div.id = 'ckchef_' + id;
-    div.onclick = () => div.classList.toggle('selected');
-    div.innerHTML = `<span style="color:${color}; font-size:20px;">●</span> ${cfg.name||id}`;
-    box.appendChild(div);
-  });
-}
-
-function addNewMenuItem() {
-  const name  = document.getElementById('newMenuName').value.trim();
-  const price = parseFloat(document.getElementById('newMenuPrice').value) || 0;
-  const cat   = document.getElementById('newMenuCat').value;
-  const nonB  = document.getElementById('isNonBatchable').checked;
-  const result = document.getElementById('addMenuResult');
-
-  if (!name) { result.textContent='❌ ใส่ชื่อเมนูด้วยครับ'; result.style.color='#e74c3c'; return; }
-  if (!cat)  { result.textContent='❌ เลือกหมวดหมู่ด้วยครับ'; result.style.color='#e74c3c'; return; }
-  // [FIX] กันชื่อเมนูที่มีอักขระต้องห้ามของ Firebase (เดิมบันทึกแล้ว error เงียบๆ)
-  if (hasBadKey(name)) {
-    result.textContent = '❌ ชื่อเมนูห้ามมีอักขระ  .  #  $  [  ]  /  — กรุณาเปลี่ยนชื่อ';
-    result.style.color = '#e74c3c';
-    return;
-  }
-  if (!menuCategories[cat]) {
-    result.textContent = '❌ ไม่พบหมวด "' + cat + '" ในระบบ';
-    result.style.color = '#e74c3c';
-    return;
-  }
-  if (menuCategories[cat].includes(name)) {
-    result.textContent = '❌ มีเมนูนี้ในหมวดนี้อยู่แล้ว';
-    result.style.color = '#e74c3c';
-    return;
-  }
-
-  const selectedChefs = Object.keys(chefConfig).filter(id => document.getElementById('ckchef_'+id)?.classList.contains('selected'));
-  const btnDisabledEls = document.querySelectorAll('#admPanel1 button');
-  btnDisabledEls.forEach(b => b.disabled = true);
-  result.style.color = '#888';
-  result.textContent = '⏳ กำลังบันทึก...';
-
-  // [FIX] อ่านค่าล่าสุดจาก Firebase ก่อนเสมอ แล้วเขียนเฉพาะ "ช่องใหม่" ที่เพิ่ม
-  // แทนการเขียนทับทั้งก้อน — กันเมนูที่คนอื่นเพิ่มพร้อมกันหาย
-  const reads = [ db.ref(BASE_PATH+'menuConfig/cats/'+cat+'/items').once('value') ];
-  selectedChefs.forEach(cid => reads.push(db.ref(BASE_PATH+'chefConfig/'+cid+'/keywords').once('value')));
-  reads.push(db.ref(BASE_PATH+'chefConfig/__nonBatchable__').once('value'));
-
-  Promise.all(reads).then(snaps => {
-    const updates = {};
-    const itemsNow = Object.values(snaps[0].val() || {});
-    if (itemsNow.includes(name)) throw new Error('มีเมนูนี้อยู่แล้ว (มีคนเพิ่มพร้อมกัน)');
-    // เขียนเฉพาะ index ใหม่ ไม่ทับรายการเดิม
-    updates[BASE_PATH+'menuConfig/cats/'+cat+'/items/'+itemsNow.length] = name;
-
-    if (price > 0) updates[BASE_PATH+'menuPrices/'+name] = price;
-
-    selectedChefs.forEach((cid, i) => {
-      const kwsNow = Object.values(snaps[1+i].val() || {});
-      if (!kwsNow.includes(name)) {
-        updates[BASE_PATH+'chefConfig/'+cid+'/keywords/'+kwsNow.length] = name;
-      }
-    });
-
-    if (nonB) {
-      const nbNow = Object.values(snaps[snaps.length-1].val() || {});
-      if (!nbNow.includes(name)) {
-        updates[BASE_PATH+'chefConfig/__nonBatchable__/'+nbNow.length] = name;
-      }
-    }
-
-    return db.ref().update(updates);
-  }).then(() => {
-    // [FIX] อัปเดต state ในเครื่อง "หลัง" เขียนสำเร็จเท่านั้น (listener จะซิงค์ค่าจริงมาอีกที)
-    result.textContent = '✅ เพิ่ม "' + name + '" สำเร็จ!';
-    result.style.color = '#27ae60';
-    document.getElementById('newMenuName').value = '';
-    document.getElementById('newMenuPrice').value = '';
-    document.getElementById('isNonBatchable').checked = false;
-    document.querySelectorAll('.chef-checkbox-item').forEach(el => el.classList.remove('selected'));
-    admShowStatus('บันทึกแล้ว ✅');
-  }).catch(e => {
-    result.textContent = '❌ ' + e.message;
-    result.style.color = '#e74c3c';
-  }).then(() => {
-    btnDisabledEls.forEach(b => b.disabled = false);
-  });
-}
-
-// ---- Tab 2: มอบหมายแม่ครัว ----
-function renderChefCards() {
-  const container = document.getElementById('chefCardsContainer');
-  container.innerHTML = '';
-  Object.entries(chefConfig).forEach(([chefId, cfg]) => {
-    if (chefId === '__nonBatchable__') return;
-    const color = CHEF_COLORS[chefId] || '#555';
-    const card = document.createElement('div');
-    card.className = 'chef-card';
-    const kws = cfg.keywords || [];
-    const tagsHtml = kws.map((kw,i) => `
-      <span class="chef-keyword-tag">
-        ${esc(kw)}
-        <button data-chef="${esc(chefId)}" data-kw="${esc(kw)}" onclick="removeChefKeywordByName(this.dataset.chef, this.dataset.kw)" title="ลบ">✕</button>
-      </span>`).join('');
-
-    card.innerHTML = `
-      <div class="chef-card-header" style="background:${color};">
-        <span>${esc(cfg.name||chefId)}</span>
-        <span style="font-size:14px; opacity:0.8;">${kws.length} คีย์เวิร์ด</span>
-      </div>
-      <div class="chef-keyword-list">${tagsHtml || '<span style="color:#aaa;font-size:14px;">ยังไม่มีคีย์เวิร์ด</span>'}</div>
-      <div class="chef-add-kw">
-        <input id="kwInput_${chefId}" class="chef-kw-input" type="text" placeholder="เพิ่มคีย์เวิร์ด..." maxlength="30"
-          onkeydown="if(event.key==='Enter') addChefKeyword('${chefId}')">
-        <button class="chef-kw-btn" style="background:${color};" onclick="addChefKeyword('${chefId}')">+</button>
-      </div>`;
-    container.appendChild(card);
-  });
-}
-
-function addChefKeyword(chefId) {
-  const input = document.getElementById('kwInput_'+chefId);
-  const kw = input.value.trim();
-  if (!kw) return;
-  input.value = '';
-  // [FIX] อ่านค่าล่าสุดก่อน แล้วเขียนเฉพาะ index ใหม่ กันทับคีย์เวิร์ดของคนอื่น
-  db.ref(BASE_PATH+'chefConfig/'+chefId+'/keywords').once('value').then(snap => {
-    const kwsNow = Object.values(snap.val() || {});
-    if (kwsNow.includes(kw)) return null;
-    return db.ref(BASE_PATH+'chefConfig/'+chefId+'/keywords/'+kwsNow.length).set(kw);
-  }).then(() => {
-    admShowStatus('บันทึกแล้ว ✅');
-  }).catch(e => admShowStatus('❌ ' + e.message, false));
-}
-
-// [FIX] ลบด้วย "ชื่อคีย์เวิร์ด" แทน "ลำดับที่" — กันลบผิดตัวเมื่อมีคนแก้จากอีกเครื่องพร้อมกัน
-function removeChefKeywordByName(chefId, kw) {
-  db.ref(BASE_PATH+'chefConfig/'+chefId+'/keywords').once('value').then(snap => {
-    const kwsNow = Object.values(snap.val() || {});
-    if (!kwsNow.includes(kw)) { admShowStatus('คีย์เวิร์ดนี้ถูกลบไปแล้ว', false); return null; }
-    const left = kwsNow.filter(x => x !== kw);
-    const kwObj = {};
-    left.forEach((k,i) => kwObj[i]=k);
-    return db.ref(BASE_PATH+'chefConfig/'+chefId+'/keywords').set(kwObj);
-  }).then(() => {
-    admShowStatus('บันทึกแล้ว ✅');
-  }).catch(e => admShowStatus('❌ ' + e.message, false));
-}
-// คงชื่อเดิมไว้เผื่อมีอะไรเรียกอยู่
-function removeChefKeyword(chefId, idx) {
-  const kws = (chefConfig[chefId] && chefConfig[chefId].keywords) || [];
-  if (idx < 0 || idx >= kws.length) return;
-  removeChefKeywordByName(chefId, kws[idx]);
-}
-
-// ---- Tab 3: ราคา ----
-// [FIX] เก็บราคาที่พิมพค้างไว้ในหน่วยความจำ ไม่หายเวลาค้นหา/วาดใหม่
-let priceEdits = {};
-function priceEditChanged(el) {
-  priceEdits[el.dataset.item] = el.value;
-  const badge = document.getElementById('priceDirtyBadge');
-  if (badge) {
-    const n = Object.keys(priceEdits).length;
-    badge.textContent = n ? ('✏️ แก้ค้างไว้ ' + n + ' เมนู — อย่าลืมกดบันทึก') : '';
-  }
-}
-
-function renderPriceTab() {
-  const q = (document.getElementById('priceSearch')?.value||'').trim();
-  const allMenus = [...new Set(Object.values(menuCategories).flat())];
-  const filtered = q ? allMenus.filter(m=>m.includes(q)) : allMenus;
-  const container = document.getElementById('priceTabList');
-
-  // build chefLookup: item -> chefName (คีย์เวิร์ดยาวสุดชนะก่อน ให้ตรงกับการแยกจริงบนจอครัว)
-  const chefLookup = {};
-  allMenus.forEach(m => {
-    const id = getChefForMenu(m);
-    if (id) chefLookup[m] = chefNameOf(id);
-  });
-
-  const dirtyNote = '<div id="priceDirtyBadge" style="font-size:12px;color:#e67e22;padding:6px 14px;"></div>';
-
-  if (filtered.length===0) { container.innerHTML = dirtyNote + '<p style="color:#aaa;text-align:center;padding:20px;">ไม่พบเมนู</p>'; priceEditChanged({dataset:{}}); return; }
-  container.innerHTML = dirtyNote + filtered.map(item => {
-    const badge = chefLookup[item] ? `<span class="price-chef-badge">${esc(chefLookup[item])}</span>` : '';
-    const warn = hasBadKey(item) ? `<span style="color:#e74c3c;font-size:12px;"> ⚠️ ชื่อมีอักขระต้องห้าม</span>` : '';
-    const cur = (priceEdits[item] !== undefined) ? priceEdits[item] : (menuPrices[item] || '');
-    return `<div class="price-row-adm">
-      <span>${esc(item)}${badge}${warn}</span>
-      <div style="display:flex;align-items:center;gap:5px;">
-        <input class="price-input-adm" data-item="${esc(item)}" oninput="priceEditChanged(this)" type="number" min="0" step="1" placeholder="0" value="${esc(cur)}">
-        <span style="color:#888;font-size:13px;">฿</span>
-      </div>
-    </div>`;
-  }).join('');
-  // แสดงจำนวนที่ค้างไว้อีกครั้งหลังวาดใหม่
-  const badge2 = document.getElementById('priceDirtyBadge');
-  const n = Object.keys(priceEdits).length;
-  if (badge2 && n) badge2.textContent = '✏️ แก้ค้างไว้ ' + n + ' เมนู — อย่าลืมกดบันทึก';
-}
-
-function savePriceTab() {
-  const updates = {};
-  const bad = [];
-  let count = 0;
-  Object.keys(priceEdits).forEach(item => {
-    if (hasBadKey(item)) { bad.push(item); return; }
-    const raw = String(priceEdits[item]).trim();
-    if (raw === '') return;                       // เว้นว่าง = ไม่แตะ
-    const v = parseFloat(raw);
-    if (isNaN(v) || v < 0) return;
-    if (v === 0) {                                // [FIX] ใส่ 0 = ลบราคาออก (เดิมทำไม่ได้)
-      updates[BASE_PATH+'menuPrices/'+item] = null;
-      delete menuPrices[item];
-    } else {
-      updates[BASE_PATH+'menuPrices/'+item] = v;
-      menuPrices[item] = v;
-    }
-    count++;
-  });
-
-  if (!count && !bad.length) { admShowStatus('ยังไม่มีการแก้ไข', false); return; }
-
-  db.ref().update(updates).then(() => {
-    priceEdits = {};
-    let msg = 'บันทึกราคา ' + count + ' เมนูแล้ว ✅';
-    if (bad.length) msg += ' (ข้าม ' + bad.length + ' เมนูที่ชื่อมีอักขระต้องห้าม)';
-    admShowStatus(msg, !bad.length);
-    renderPriceTab();
-  }).catch(e => admShowStatus('❌ ' + e.message, false));
-}
 
 // ---- Firebase listeners ----
 function loadChefConfig() {
@@ -853,9 +380,10 @@ function loadChefConfig() {
     if (snap.exists()) {
       const raw = snap.val();
       chefConfig = {};
+      nonBatchableItems = []; // [FIX] รีเซ็ตก่อนเสมอ เผื่อกรณีลบรายการแยกจานออกจนหมดแล้ว node __nonBatchable__ ถูกลบ
       Object.entries(raw).forEach(([id, val]) => {
         if (id==='__nonBatchable__') {
-          nonBatchableItems = Object.values(val);
+          nonBatchableItems = Object.values(val || {});
         } else {
           chefConfig[id] = { name: val.name||DEFAULT_CHEF_NAMES[id]||id, keywords: Object.values(val.keywords||{}) };
         }
@@ -877,7 +405,6 @@ function loadChefConfig() {
     }
     rebuildKitchenUI();
     renderOrders();
-    admRefreshOpenTab();   // [FIX] หน้าแอดมินที่เปิดค้างไว้จะได้ข้อมูลใหม่ด้วย
   });
 }
 
@@ -890,7 +417,6 @@ function loadMenuCategories() {
       catOrder.forEach(cat => {
         if (raw.cats?.[cat]) menuCategories[cat] = Object.values(raw.cats[cat].items||{});
       });
-      admRefreshOpenTab();   // [FIX] เมนูเปลี่ยนจากระบบรับออเดอร์ -> วาดใหม่
     }
   });
 }
@@ -1191,16 +717,17 @@ function renderOrders() {
       if (target) {
         target.totalQty += Number(o.quantity);
         target.subOrders.push(o);
+        if (o.priority) target.priority = true;
         if (new Date(o.timestamp) < new Date(target.minTs)) target.minTs = o.timestamp;
       } else {
-        batchGroups.push({ type:'batch', item:o.item, comment:o.comment, totalQty:Number(o.quantity), subOrders:[o], minTs:o.timestamp });
+        batchGroups.push({ type:'batch', item:o.item, comment:o.comment, totalQty:Number(o.quantity), subOrders:[o], minTs:o.timestamp, priority:!!o.priority });
       }
     } else {
       // non-batchable = ทำพร้อมกันไม่ได้ ต้องต่อคิวตามเวลาสั่งจริงของแต่ละรอบ
       // จึงไม่รวมกับออเดอร์อื่นของโต๊ะเดียวกันที่สั่งมาคนละรอบ แม้เมนู/คอมเมนต์จะเหมือนกันก็ตาม
       const qty = Math.max(1, Number(o.quantity) || 1);
       const doneUnits = o.doneUnits || {};
-      const block = { type:'nonb', item:o.item, comment:o.comment, table:o.table, units:[], minTs:o.timestamp };
+      const block = { type:'nonb', item:o.item, comment:o.comment, table:o.table, units:[], minTs:o.timestamp, priority:!!o.priority, reservedFor:o.reservedFor||'' };
       for (let i=0; i<qty; i++) {
         block.units.push({ orderId:o.id, unitIndex:i, quantity:qty, done: !!doneUnits[i], timestamp:o.timestamp });
       }
@@ -1208,7 +735,10 @@ function renderOrders() {
     }
   });
 
-  const allCards = [...batchGroups, ...nonbBlocks].sort((a,b) => new Date(a.minTs)-new Date(b.minTs));
+  const allCards = [...batchGroups, ...nonbBlocks].sort((a,b) => {
+    if (!!a.priority !== !!b.priority) return a.priority ? -1 : 1;
+    return new Date(a.minTs)-new Date(b.minTs);
+  });
 
   // ---- หาออเดอร์ที่ "รอนานที่สุด" (ยังไม่เสร็จ) 5 อันดับแรก ในทุกคอลัมน์ ไว้แจ้งเตือนบนแถบด้านบน ----
   // ทำตรงนี้เพื่อให้ไม่ตกหล่น ต่อให้คอลัมน์ของแม่ครัวคนนั้นจะยังไม่ถูกเลื่อนไปดูก็ตาม
@@ -1226,16 +756,21 @@ function renderOrders() {
       const groupIds = JSON.stringify(group.subOrders.map(so=>so.id));
 
       if (!isAllReady) {
+        const firstPending = group.subOrders.find(so => so.status!=='ready') || group.subOrders[0];
         pendingList.push({
           chefId, chefName: chefNameOf(chefId),
-          item: group.item, comment: group.comment, table: group.subOrders[0] && group.subOrders[0].table, ts: group.minTs
+          item: group.item, comment: group.comment,
+          table: firstPending && firstPending.table,
+          priority: !!(firstPending && firstPending.priority),
+          reservedFor: (firstPending && firstPending.reservedFor) || '',
+          ts: group.minTs
         });
       }
 
       let tablesHtml = group.subOrders.map(order => {
         const isReady = order.status==='ready';
         return `<div class="table-item ${isReady?'ready':''}" onclick='event.stopPropagation(); if (tapGuard(this,${jsAttr("i:"+order.id)})) toggleItemReady(${jsAttr(order.id)},${jsAttr(order.status)})'>
-          <span>${tableLabelHtml(order.table)}</span>
+          <span>${tableLabelHtml(order.table, false, order.priority, order.reservedFor)}</span>
           <span class="qty-circle" style="${isReady?'':'background:'+color}">${esc(order.quantity)}</span>
         </div>`;
       }).join('');
@@ -1266,7 +801,11 @@ function renderOrders() {
       if (!isAllReady) {
         pendingList.push({
           chefId, chefName: chefNameOf(chefId),
-          item: group.item, comment: group.comment, table: group.table, ts: group.minTs
+          item: group.item, comment: group.comment,
+          table: group.table,
+          priority: !!group.priority,
+          reservedFor: group.reservedFor || '',
+          ts: group.minTs
         });
       }
 
@@ -1274,7 +813,7 @@ function renderOrders() {
 
       let unitsHtml = units.map((u, idx) => {
         return `<div class="table-item ${u.done?'ready':''}" onclick='event.stopPropagation(); if (tapGuard(this,${jsAttr("u:"+u.orderId+":"+u.unitIndex)})) toggleNonBUnit(${jsAttr(u.orderId)}, ${u.unitIndex}, ${u.done}, ${u.quantity})'>
-          <span>${tableLabelHtml(group.table)} <span style="color:#888;font-size:0.8em;">จานที่ ${idx+1}/${units.length}</span></span>
+          <span>${tableLabelHtml(group.table, false, group.priority, group.reservedFor)} <span style="color:#888;font-size:0.8em;">จานที่ ${idx+1}/${units.length}</span></span>
           <span class="qty-circle" style="${u.done?'':'background:'+color}">${u.done?'✓':''}</span>
         </div>`;
       }).join('');
@@ -1285,7 +824,7 @@ function renderOrders() {
       card.innerHTML = `
         <div class="card-header ${isAllReady?'ready':''}" style="${isAllReady?'':'background:'+color}"
           onclick='if (tapGuard(this,${jsAttr("n:"+group.item+"|"+group.table)})) toggleNonBBlock(${JSON.stringify(unitsPayload)}, ${isAllReady})'>
-          <span>${esc(group.item)} — ${tableLabelHtml(group.table)}</span>
+          <span>${esc(group.item)} — ${tableLabelHtml(group.table, false, group.priority, group.reservedFor)}</span>
           <span class="qty-circle" style="background:white; color:${color};">${esc(remainingQty)}</span>
         </div>
         ${group.comment?`<div class="card-comment">⚠️ ${esc(group.comment)}</div>`:''}
@@ -1342,7 +881,7 @@ function updateQueueAlertDisplay() {
   const chipsHtml = pendingQueueTop3.map((p, idx) => {
     const mins = Math.max(0, Math.floor((Date.now() - new Date(p.ts).getTime()) / 60000));
     const isUrgent = mins >= 10;
-    const tableTxt = p.table ? ` (${tableLabelHtml(p.table, true)})` : '';
+    const tableTxt = p.table ? ` (${tableLabelHtml(p.table, true, p.priority, p.reservedFor)})` : '';
     const commentTxt = p.comment ? ` <span class="chip-comment">⚠️ ${esc(p.comment)}</span>` : '';
     const chipColor = CHEF_COLORS[p.chefId] || '#7f8c8d';
     return `<span class="queue-alert-chip ${isUrgent?'chip-urgent':''}" style="border-color:${chipColor};" data-chef="${esc(p.chefId)}" onclick="focusChef(this.dataset.chef)">
@@ -1399,13 +938,14 @@ function toggleNonBUnit(orderId, unitIndex, currentlyDone, quantity) {
   const newDone = !currentlyDone;
   const order = currentOrders.find(o => o.id === orderId);
   const doneUnits = Object.assign({}, (order && order.doneUnits) || {});
-  doneUnits[unitIndex] = newDone;
+  if (newDone) doneUnits[unitIndex] = true;
+  else delete doneUnits[unitIndex];
 
   let allDone = true;
-  for (let i=0; i<quantity; i++) { if (!doneUnits[i]) { allDone = false; break; } }
+  for (let i=0; i<quantity; i++) { if (doneUnits[i] !== true) { allDone = false; break; } }
 
   const updates = {};
-  updates[BASE_PATH+'orders/'+orderId+'/doneUnits/'+unitIndex] = newDone;
+  updates[BASE_PATH+'orders/'+orderId+'/doneUnits/'+unitIndex] = newDone ? true : null;
   updates[BASE_PATH+'orders/'+orderId+'/status'] = allDone ? 'ready' : 'pending';
   db.ref().update(updates);
 }
@@ -1417,7 +957,7 @@ function toggleNonBBlock(unitsPayloadStr, isAllReady) {
   const updates = {};
   const touchedOrderQty = {};
   units.forEach(u => {
-    updates[BASE_PATH+'orders/'+u.orderId+'/doneUnits/'+u.unitIndex] = newDone;
+    updates[BASE_PATH+'orders/'+u.orderId+'/doneUnits/'+u.unitIndex] = newDone ? true : null;
     touchedOrderQty[u.orderId] = u.quantity;
   });
   Object.keys(touchedOrderQty).forEach(oid => {
@@ -1489,93 +1029,6 @@ window.addEventListener('load', () => {
     }
   });
 });
-
-// ---- Tab 4: จัดการสั่งแยก/รวม (nonBatchable) ----
-let nbCurrentFilter = 'all';
-
-function nbSetFilter(f) {
-  nbCurrentFilter = f;
-  const map = { all:'nbBtnAll', split:'nbBtnSplit', merge:'nbBtnMerge' };
-  Object.entries(map).forEach(([k, btnId]) => {
-    const btn = document.getElementById(btnId);
-    if (!btn) return;
-    const isActive = k === f;
-    btn.style.background = isActive ? '#e67e22' : '#f8f9fa';
-    btn.style.color = isActive ? 'white' : '#555';
-    btn.style.borderColor = isActive ? '#e67e22' : '#ddd';
-  });
-  renderNonBatchTab();
-}
-
-function renderNonBatchTab() {
-  const q = (document.getElementById('nbSearch')?.value || '').trim();
-  const allMenus = [...new Set(Object.values(menuCategories).flat())].sort((a,b)=>a.localeCompare(b,'th'));
-
-  let filtered = allMenus;
-  if (q) filtered = filtered.filter(m => m.includes(q));
-  if (nbCurrentFilter === 'split') filtered = filtered.filter(m => nonBatchableItems.includes(m));
-  if (nbCurrentFilter === 'merge') filtered = filtered.filter(m => !nonBatchableItems.includes(m));
-
-  const container = document.getElementById('nbMenuList');
-  if (!container) return;
-
-  if (filtered.length === 0) {
-    container.innerHTML = '<p style="color:#aaa; text-align:center; padding:24px; font-size:14px;">ไม่พบเมนู</p>';
-    return;
-  }
-
-  const splitCount = allMenus.filter(m => nonBatchableItems.includes(m)).length;
-  const mergeCount = allMenus.length - splitCount;
-
-  container.innerHTML = `
-    <div style="display:flex; justify-content:space-between; padding:8px 14px; background:#f8f9fa; border-bottom:1px solid #eee; font-size:12px; color:#888;">
-      <span>🔴 สั่งแยก: <strong style="color:#e74c3c;">${splitCount}</strong></span>
-      <span>🟢 รวมได้: <strong style="color:#27ae60;">${mergeCount}</strong></span>
-      <span>ทั้งหมด: <strong>${allMenus.length}</strong></span>
-    </div>
-    ${filtered.map(item => {
-      const isSplit = nonBatchableItems.includes(item);
-      return `<div style="display:flex; align-items:center; justify-content:space-between; padding:13px 16px; border-bottom:1px solid #f0f0f0; background:${isSplit?'#fff8f5':'white'};">
-        <span style="flex:1; font-size:15px; font-weight:${isSplit?'bold':'normal'}; color:${isSplit?'#c0392b':'#2c3e50'};">
-          ${isSplit ? '🔴' : '🟢'} ${esc(item)}
-        </span>
-        <div style="display:flex; align-items:center; gap:8px;">
-          <span style="font-size:13px; color:${isSplit?'#e74c3c':'#27ae60'}; font-weight:bold; min-width:28px; text-align:right;">${isSplit?'แยก':'รวม'}</span>
-          <div data-item="${esc(item)}" data-split="${isSplit?'1':'0'}" onclick="toggleNonBatch(this.dataset.item, this.dataset.split==='1')"
-            style="width:46px; height:26px; border-radius:13px; background:${isSplit?'#e74c3c':'#27ae60'}; position:relative; cursor:pointer; flex-shrink:0; box-shadow:inset 0 1px 3px rgba(0,0,0,0.15);">
-            <div style="width:20px; height:20px; border-radius:50%; background:white; position:absolute; top:3px; ${isSplit?'right:3px':'left:3px'}; box-shadow:0 1px 3px rgba(0,0,0,0.3);"></div>
-          </div>
-        </div>
-      </div>`;
-    }).join('')}`;
-}
-
-function toggleNonBatch(itemName, currentlySplit) {
-  const statusEl = document.getElementById('nbStatus');
-  // [FIX] อ่านค่าล่าสุดจาก Firebase ก่อน กันทับรายการที่เครื่องอื่นเพิ่งเปลี่ยน
-  db.ref(BASE_PATH + 'chefConfig/__nonBatchable__').once('value').then(snap => {
-    let list = Object.values(snap.val() || {});
-    if (currentlySplit) list = list.filter(x => x !== itemName);
-    else if (!list.includes(itemName)) list.push(itemName);
-    nonBatchableItems = list;
-    const nbObj = {};
-    list.forEach((k, i) => nbObj[i] = k);
-    return db.ref(BASE_PATH + 'chefConfig/__nonBatchable__').set(nbObj);
-  }).then(() => {
-    if (statusEl) {
-      statusEl.style.color = '#27ae60';
-      statusEl.textContent = currentlySplit
-        ? `✅ "${itemName}" → เปลี่ยนเป็น รวมได้แล้ว`
-        : `✅ "${itemName}" → เปลี่ยนเป็น สั่งแยกแล้ว`;
-      setTimeout(() => statusEl.textContent = '', 2500);
-    }
-    admShowStatus('บันทึกแล้ว ✅');
-    renderNonBatchTab();
-    renderOrders();
-  }).catch(e => {
-    if (statusEl) { statusEl.style.color = '#e74c3c'; statusEl.textContent = '❌ ' + e.message; }
-  });
-}
 
 // ================= ระบบ Access Code (ใช้ Firebase path เดียวกับระบบรับออเดอร์) =================
 const ACCESS_CODE_FB_PATH = BASE_PATH + 'accessCode';
@@ -1833,8 +1286,10 @@ function initAccessCode() {
       .catch(function () { show('code'); });
   }
 
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
-  else boot();
+  /* หน้าจอครัวมีระบบรหัสร้าน (#accessOverlay / initAccessCode) ของตัวเองอยู่แล้ว
+     และไม่ได้ใช้ชื่อพนักงานรายคน — ปิดการ auto-boot() ของ #gateOv เพื่อไม่ให้เด้งซ้อนทับหน้าล็อกรหัสร้าน */
+  // if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
+  // else boot();
 })();
 </script>
 <!-- ================= จบระบบล็อกเข้าใช้งาน ================= -->
